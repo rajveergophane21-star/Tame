@@ -71,7 +71,7 @@ class TameAccessibilityService : AccessibilityService() {
         if (pkg == packageName || blockOverlay?.isShowing == true) return
         val now = System.currentTimeMillis()
         data.rules.firstOrNull { it.kind == RuleKind.APP && it.targets.contains(pkg) && it.isActiveAt(now) }?.let { rule ->
-            if (!snoozed(pkg)) enforce(rule.mode, appLabel(pkg), liftLabel(rule), pkg)
+            if (!snoozed(pkg)) enforce(rule.mode, appLabel(pkg), liftLabel(rule), pkg, RuleKind.APP)
         }
     }
 
@@ -104,7 +104,7 @@ class TameAccessibilityService : AccessibilityService() {
         // 1) Whole-app block / friction — APP rule targets are package names
         data.rules.firstOrNull { it.kind == RuleKind.APP && it.targets.contains(pkg) && it.isActiveAt(now) }?.let { rule ->
             clearFeed()
-            if (!snoozed(pkg)) enforce(rule.mode, appLabel(pkg), liftLabel(rule), pkg)
+            if (!snoozed(pkg)) enforce(rule.mode, appLabel(pkg), liftLabel(rule), pkg, RuleKind.APP)
             return
         }
 
@@ -129,10 +129,10 @@ class TameAccessibilityService : AccessibilityService() {
 
             if (!snoozed(key)) {
                 data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.isActiveAt(now) }?.let { rule ->
-                    clearFeed(); enforce(rule.mode, feedName, liftLabel(rule), key); return
+                    clearFeed(); enforce(rule.mode, feedName, liftLabel(rule), key, RuleKind.FEED); return
                 }
                 data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.limit > 0 }?.let { limitRule ->
-                    if (data.settings.todayReels >= limitRule.limit) { enforce(limitRule.mode, feedName, "tomorrow", key); return }
+                    if (data.settings.todayReels >= limitRule.limit) { enforce(limitRule.mode, feedName, "tomorrow", key, RuleKind.FEED); return }
                 }
             }
         } else {
@@ -198,8 +198,8 @@ class TameAccessibilityService : AccessibilityService() {
         OverlayManager.showOrUpdate(this, reels, limit, ratio)
     }
 
-    /** Show the stop screen as a TYPE_ACCESSIBILITY_OVERLAY (reliable from a service). */
-    private fun enforce(mode: RuleMode, name: String, lifts: String, target: String) {
+    /** Show the stop screen as a full-screen overlay (reliable from a service). */
+    private fun enforce(mode: RuleMode, name: String, lifts: String, target: String, kind: RuleKind) {
         val now = System.currentTimeMillis()
         if (blockOverlay?.isShowing == true || now - lastTriggerAt < 600) return
         lastTriggerAt = now
@@ -208,8 +208,14 @@ class TameAccessibilityService : AccessibilityService() {
             scope.launch { TameApp.repo.update { it.copy(settings = it.settings.copy(turnbacks = it.settings.turnbacks + 1)) } }
         }
         blockedPkg = currentPkg
+        // FEED: press Back to leave just the feed (stay in the app). APP: go Home.
+        val leave: () -> Unit = if (kind == RuleKind.FEED) {
+            { runCatching { performGlobalAction(GLOBAL_ACTION_BACK) } }
+        } else {
+            { runCatching { performGlobalAction(GLOBAL_ACTION_HOME) } }
+        }
         val palette = Accents.byKey(data.settings.accentKey)
-        val overlay = BlockOverlay(this, palette, onHome = { runCatching { performGlobalAction(GLOBAL_ACTION_HOME) } })
+        val overlay = BlockOverlay(this, palette, onLeave = leave)
         blockOverlay = overlay
         if (mode == RuleMode.BLOCK) {
             overlay.showBlock(data.settings.blockStyle, name, lifts)

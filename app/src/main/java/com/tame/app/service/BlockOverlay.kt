@@ -31,7 +31,8 @@ import com.tame.app.ui.theme.TameTheme
 class BlockOverlay(
     private val service: AccessibilityService,
     private val accent: AccentPalette,
-    private val onHome: () -> Unit,
+    // how to leave: BACK for a feed (stay in the app), HOME for a whole-app block
+    private val onLeave: () -> Unit,
 ) : LifecycleOwner, ViewModelStoreOwner, SavedStateRegistryOwner {
 
     private val lifecycleRegistry = LifecycleRegistry(this)
@@ -48,10 +49,10 @@ class BlockOverlay(
     val isShowing: Boolean get() = view != null
 
     fun showBlock(style: String, name: String, lifts: String) =
-        mount { BlockContent(style = style, name = name, lifts = lifts, onBack = ::goHome) }
+        mount { BlockContent(style = style, name = name, lifts = lifts, onBack = ::leave) }
 
     fun showFriction(name: String, onOpenAnyway: () -> Unit) =
-        mount { FrictionContent(name = name, onStay = ::goHome, onOpen = { hide(); onOpenAnyway() }) }
+        mount { FrictionContent(name = name, onStay = ::leave, onOpen = { hide(); onOpenAnyway() }) }
 
     private fun mount(content: @Composable () -> Unit) {
         if (view != null) return
@@ -66,7 +67,7 @@ class BlockOverlay(
             isFocusableInTouchMode = true
             setOnKeyListener { _, keyCode, event ->
                 if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
-                    goHome(); true
+                    leave(); true
                 } else false
             }
             setContent { TameTheme(accent = accent) { content() } }
@@ -75,24 +76,35 @@ class BlockOverlay(
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
 
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-            PixelFormat.TRANSLUCENT,
-        )
-        runCatching {
-            wm.addView(cv, params)
-            cv.requestFocus()
+        val flags = WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+        val types = buildList {
+            add(WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY)
+            if (android.provider.Settings.canDrawOverlays(service)) {
+                add(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
+            }
         }
-        view = cv
+        var attached = false
+        for (type in types) {
+            val params = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                type, flags, PixelFormat.TRANSLUCENT,
+            )
+            if (runCatching { wm.addView(cv, params); cv.requestFocus() }.isSuccess) { attached = true; break }
+        }
+        if (attached) {
+            view = cv
+        } else {
+            lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
+            lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
+            lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+        }
     }
 
-    private fun goHome() {
+    private fun leave() {
         hide()
-        onHome()
+        onLeave()
     }
 
     fun hide() {

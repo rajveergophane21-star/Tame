@@ -79,18 +79,9 @@ object OverlayManager {
             col.addView(countText); col.addView(track)
             pill.addView(frank); pill.addView(col)
 
-            val lp = WindowManager.LayoutParams(
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
-                PixelFormat.TRANSLUCENT,
-            ).apply {
-                gravity = Gravity.TOP or Gravity.END
-                x = dp(ctx, 14f); y = dp(ctx, 56f)
-            }
+            // only cache the view if it actually attaches; otherwise retry next event
+            if (!addCounter(ctx, wm, pill)) return
             root = pill
-            runCatching { wm.addView(pill, lp) }
         }
         frank?.setImageResource(mood)
         countText?.text = "$reels/$limit"
@@ -101,6 +92,28 @@ object OverlayManager {
             it.layoutParams = lp
             (it.background as? GradientDrawable)?.setColor(color)
         }
+    }
+
+    /** Try to attach the counter, preferring the standard overlay type, then the a11y type. */
+    private fun addCounter(ctx: Context, wm: WindowManager, pill: View): Boolean {
+        val types = buildList {
+            if (Settings.canDrawOverlays(ctx)) add(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
+            add(WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY)
+        }
+        for (type in types) {
+            val lp = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                type,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                PixelFormat.TRANSLUCENT,
+            ).apply {
+                gravity = Gravity.TOP or Gravity.END
+                x = dp(ctx, 14f); y = dp(ctx, 56f)
+            }
+            if (runCatching { wm.addView(pill, lp) }.isSuccess) return true
+        }
+        return false
     }
 
     fun hide(ctx: Context) {
