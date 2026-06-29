@@ -6,6 +6,7 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.tame.app.TameApp
 import com.tame.app.data.model.AppCatalog
+import com.tame.app.data.model.KnownApp
 import com.tame.app.data.model.RuleKind
 import com.tame.app.data.model.RuleMode
 import com.tame.app.data.model.TameData
@@ -36,6 +37,10 @@ class TameAccessibilityService : AccessibilityService() {
     // feed time tracking
     private var feedTickAt = 0L
     private var feedMillisAcc = 0L
+
+    // content-based reel counting (a substantial caption/author text change = a new reel)
+    private val lastReelText = HashMap<String, String>()
+    private val recentReelTexts = HashMap<String, ArrayDeque<String>>()
 
     private var blockOverlay: BlockOverlay? = null
     private var blockedPkg: String? = null
@@ -88,25 +93,45 @@ class TameAccessibilityService : AccessibilityService() {
 
         // We're in a known short-form app. The counter/time follow being IN the app
         // (package is stable while scrolling, so the overlay never flickers off).
-        // Strict on-screen detection is only used to decide when to BLOCK the feed.
+        // One node scan tells us if the feed is on screen + the current reel's text.
         if (feedKey != key) { feedKey = key; feedTickAt = now }
-        tickFeedTime(now)
 
-        val detected = isFeedOnScreen(key)
+        val root = rootInActiveWindow
+        val scan = if (root != null) scanFeed(root, app) else FeedScan(app.feedIsWholeApp, null)
         val feedName = app.feed ?: app.name
-        if (!snoozed(key) && detected) {
-            data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.isActiveAt(now) }?.let { rule ->
-                clearFeed(); enforce(rule.mode, feedName, liftLabel(rule), key); return
+
+        if (scan.onFeed) {
+            tickFeedTime(now)
+            // content-based counting (Instagram/YouTube): a substantial caption change = new reel
+            if (app.reelTextIds.isNotEmpty() && scan.reelText != null) maybeCountReel(key, scan.reelText)
+
+            if (!snoozed(key)) {
+                data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.isActiveAt(now) }?.let { rule ->
+                    clearFeed(); enforce(rule.mode, feedName, liftLabel(rule), key); return
+                }
+                data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.limit > 0 }?.let { limitRule ->
+                    if (data.settings.todayReels >= limitRule.limit) { enforce(limitRule.mode, feedName, "tomorrow", key); return }
+                }
             }
-            data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.limit > 0 }?.let { limitRule ->
-                if (data.settings.todayReels >= limitRule.limit) { enforce(limitRule.mode, feedName, "tomorrow", key); return }
-            }
+        } else {
+            feedTickAt = now // not on the feed right now — don't accumulate time
         }
+
         val limitRule = data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.limit > 0 }
         val limit = limitRule?.limit ?: data.settings.reelLimit
         val reels = data.settings.todayReels
         val ratio = if (limit > 0) reels.toFloat() / limit else 0f
         OverlayManager.showOrUpdate(this, reels, limit, ratio)
+    }
+
+    private fun maybeCountReel(key: String, text: String) {
+        if (text == lastReelText[key]) return
+        lastReelText[key] = text
+        val recent = recentReelTexts.getOrPut(key) { ArrayDeque() }
+        if (recent.contains(text)) return // scrolled back to a reel we already counted
+        recent.addLast(text)
+        if (recent.size > 40) recent.removeFirst()
+        scope.launch { TameApp.repo.update { it.copy(settings = it.settings.copy(todayReels = it.settings.todayReels + 1)) } }
     }
 
     /** Accumulate time-on-feed and flush to storage every few seconds. */
@@ -133,6 +158,9 @@ class TameAccessibilityService : AccessibilityService() {
     private fun handleScroll(pkg: String) {
         val key = AppCatalog.keyForPackage(pkg) ?: return
         if (key != feedKey) return
+        val app = AppCatalog[key] ?: return
+        // apps with caption text (IG/YT) are counted by content change; only scroll-count the rest
+        if (app.reelTextIds.isNotEmpty()) return
         val now = System.currentTimeMillis()
         if (now - lastScrollAt < 700) return
         lastScrollAt = now
@@ -184,35 +212,56 @@ class TameAccessibilityService : AccessibilityService() {
     private fun clearFeed() {
         if (feedKey != null) {
             flushFeedTime()
+            lastReelText.remove(feedKey)
             feedKey = null
             OverlayManager.hide(this)
         }
         feedTickAt = 0L
     }
 
-    /** Heuristic: is the app's short-form feed currently on screen? */
-    private fun isFeedOnScreen(key: String): Boolean {
-        val app = AppCatalog[key] ?: return false
-        if (app.feedIsWholeApp) return true
-        if (app.feedSignatures.isEmpty()) return false
-        val root = rootInActiveWindow ?: return false
-        return nodeMatches(root, app.feedSignatures)
-    }
+    private data class FeedScan(val onFeed: Boolean, val reelText: String?)
 
-    private fun nodeMatches(root: AccessibilityNodeInfo, signatures: List<String>): Boolean {
+    /**
+     * One traversal of the window: is the short-form feed on screen, and what is the
+     * current reel's caption/author text (used to count distinct reels)?
+     */
+    private fun scanFeed(root: AccessibilityNodeInfo, app: KnownApp): FeedScan {
+        if (app.feedIsWholeApp) return FeedScan(true, null)
+        if (app.feedViewIds.isEmpty() && app.feedDesc.isEmpty()) return FeedScan(false, null)
+        var onFeed = false
+        val text = StringBuilder()
         val queue = ArrayDeque<AccessibilityNodeInfo>()
         queue.add(root)
         var visited = 0
-        while (queue.isNotEmpty() && visited < 500) {
+        while (queue.isNotEmpty() && visited < 900) {
             val node = queue.removeFirst()
             visited++
             val id = node.viewIdResourceName?.lowercase()
-            if (id != null && signatures.any { id.contains(it) }) return true
-            for (i in 0 until node.childCount) {
-                node.getChild(i)?.let { queue.add(it) }
+            if (id != null) {
+                if (app.feedViewIds.any { id.contains(it) }) onFeed = true
+                if (app.reelTextIds.any { id.contains(it) }) appendNodeText(node, text)
             }
+            if (app.feedDesc.isNotEmpty()) {
+                node.contentDescription?.toString()?.lowercase()?.let { d ->
+                    if (app.feedDesc.any { d.contains(it) }) onFeed = true
+                }
+            }
+            for (i in 0 until node.childCount) node.getChild(i)?.let { queue.add(it) }
         }
-        return false
+        return FeedScan(onFeed, text.toString().trim().ifBlank { null })
+    }
+
+    /** Collect text from a node's small subtree (the caption/author block). */
+    private fun appendNodeText(node: AccessibilityNodeInfo, out: StringBuilder) {
+        val q = ArrayDeque<AccessibilityNodeInfo>()
+        q.add(node)
+        var n = 0
+        while (q.isNotEmpty() && n < 40) {
+            val cur = q.removeFirst()
+            n++
+            cur.text?.toString()?.let { if (it.isNotBlank()) out.append(it).append(' ') }
+            for (i in 0 until cur.childCount) cur.getChild(i)?.let { q.add(it) }
+        }
     }
 
     override fun onInterrupt() {}

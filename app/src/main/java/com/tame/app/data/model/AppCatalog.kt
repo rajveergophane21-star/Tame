@@ -2,14 +2,14 @@ package com.tame.app.data.model
 
 /**
  * Static catalog of apps the user can target. Pure Kotlin (no Compose) so the
- * accessibility service can use [packages] / [feedSignatures] too.
+ * accessibility service can use [packages] / feed signatures too.
  *
- * [colorHex]/[fgHex] are ARGB longs (UI converts to Compose Color).
- * [feed] is the short-form feed name (null = not a short-form app).
- * [packages] are the known Android package names.
- * [feedSignatures] are lowercase resource-id / class substrings that indicate the
- * short-form feed is on screen. These are heuristic and may need updates as apps
- * change; treat them as a best-effort starting point.
+ * Feed-detection fields (heuristic, may need updates as apps change — IDs verified
+ * against the open-source Curbox project, kt-rewrite branch):
+ *  - [feedViewIds]      lowercase view-id substrings present when the short-form feed is on screen
+ *  - [feedDesc]         lowercase content-description substrings indicating the feed (Snap/FB)
+ *  - [reelTextIds]      view-id substrings of the caption/author text; a substantial change = a new reel
+ *  - [feedIsWholeApp]   the whole app effectively IS the feed (TikTok)
  */
 data class KnownApp(
     val key: String,
@@ -19,8 +19,9 @@ data class KnownApp(
     val fgHex: Long,
     val feed: String? = null,
     val packages: List<String> = emptyList(),
-    val feedSignatures: List<String> = emptyList(),
-    /** If true, the whole app effectively IS the short-form feed (e.g. TikTok home). */
+    val feedViewIds: List<String> = emptyList(),
+    val feedDesc: List<String> = emptyList(),
+    val reelTextIds: List<String> = emptyList(),
     val feedIsWholeApp: Boolean = false,
 )
 
@@ -29,28 +30,30 @@ object AppCatalog {
         KnownApp(
             "ig", "Instagram", "Ig", 0xFFE1306C, 0xFFFFFFFF, feed = "Reels",
             packages = listOf("com.instagram.android"),
-            feedSignatures = listOf("clips_viewer", "reel_viewer", "clips_tab", "reels_tray"),
+            feedViewIds = listOf("clips_viewer"),
+            reelTextIds = listOf("clips_author", "clips_caption"),
         ),
         KnownApp(
             "yt", "YouTube", "YT", 0xFFFF0000, 0xFFFFFFFF, feed = "Shorts",
-            packages = listOf("com.google.android.youtube"),
-            feedSignatures = listOf("reel_recycler", "reel_player_page", "shorts_", "reel_watch"),
+            packages = listOf("com.google.android.youtube", "app.revanced.android.youtube"),
+            feedViewIds = listOf("reel_recycler", "reel_player_page"),
+            reelTextIds = listOf("reel_player_page_content"),
         ),
         KnownApp(
             "tt", "TikTok", "TT", 0xFF0B0B0B, 0xFFFFFFFF, feed = "For You",
             packages = listOf("com.zhiliaoapp.musically", "com.ss.android.ugc.trill", "com.ss.android.ugc.aweme"),
-            feedSignatures = listOf("feed", "for_you", "video_feed"),
             feedIsWholeApp = true,
         ),
         KnownApp(
             "sc", "Snapchat", "Sn", 0xFFFFFC00, 0xFF0B0B0B, feed = "Spotlight",
             packages = listOf("com.snapchat.android"),
-            feedSignatures = listOf("spotlight", "discover_feed"),
+            feedDesc = listOf("spotlight"),
         ),
         KnownApp(
             "fb", "Facebook", "Fb", 0xFF1877F2, 0xFFFFFFFF, feed = "Reels",
             packages = listOf("com.facebook.katana"),
-            feedSignatures = listOf("reels", "video_home", "watch_feed"),
+            feedViewIds = listOf("video_home", "reels_viewer"),
+            feedDesc = listOf("tap to show video controls"),
         ),
         KnownApp("th", "Threads", "Th", 0xFF0B0B0B, 0xFFFFFFFF, packages = listOf("com.instagram.barcelona")),
         KnownApp("x", "X", "X", 0xFF0B0B0B, 0xFFFFFFFF, packages = listOf("com.twitter.android")),
