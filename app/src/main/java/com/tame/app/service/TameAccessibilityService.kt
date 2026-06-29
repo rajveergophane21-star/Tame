@@ -6,6 +6,8 @@ import android.os.Handler
 import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.view.inputmethod.InputMethodManager
+import com.tame.app.data.TameRepository
 import com.tame.app.TameApp
 import com.tame.app.data.model.AppCatalog
 import com.tame.app.data.model.KnownApp
@@ -50,13 +52,37 @@ class TameAccessibilityService : AccessibilityService() {
 
     private fun snoozed(target: String) = System.currentTimeMillis() < (snoozeUntil[target] ?: 0L)
 
+    // Input-method packages (the keyboard) — their windows must not count as a
+    // foreground app change, or the overlay/counter flickers off while typing.
+    private val imePackages: Set<String> by lazy {
+        runCatching {
+            getSystemService(InputMethodManager::class.java)?.enabledInputMethodList?.mapNotNull { it.packageName }?.toSet()
+        }.getOrNull() ?: emptySet()
+    }
+
+    /** Transient/system windows that should NOT be treated as the foreground app. */
+    private fun ignoredWindow(pkg: String): Boolean =
+        pkg == packageName ||
+            pkg == "android" ||
+            pkg == "com.android.systemui" ||
+            pkg == "com.google.android.apps.wellbeing" ||
+            pkg in imePackages
+
     private val handler = Handler(Looper.getMainLooper())
     // Safety net: re-evaluate the foreground app even when no events fire, so a rule
     // that starts mid-session (or a block dismissed by the system) re-applies.
     private val recheck = object : Runnable {
         override fun run() {
+            rolloverCheck()
             recheckApps()
             handler.postDelayed(this, 1200)
+        }
+    }
+
+    private fun rolloverCheck() {
+        val last = data.settings.lastReelDay
+        if (last.isNotEmpty() && last != TameRepository.today()) {
+            scope.launch { TameApp.repo.rolloverIfNeeded() }
         }
     }
 
@@ -78,7 +104,10 @@ class TameAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val e = event ?: return
         val pkg = e.packageName?.toString() ?: return
-        if (pkg == packageName) return
+        // Ignore the keyboard, status bar/notification shade, dialogs and our own
+        // windows so they don't masquerade as a foreground-app change (this was
+        // making the reel counter vanish after a few seconds).
+        if (ignoredWindow(pkg)) return
         when (e.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
                 currentPkg = pkg

@@ -25,8 +25,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.temporal.ChronoUnit
 
 /**
  * Single source of UI truth — a Compose-state port of the design prototype's
@@ -416,38 +414,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun focus60() = setFocus(60, "1 hour")
     fun focusOpen() = setFocus(0, "until you stop")
 
-    // ── daily reset ──
-    fun ensureDay() = viewModelScope.launch {
-        repo.update { d ->
-            val today = TameRepository.today()
-            val last = d.settings.lastReelDay
-            if (last == today) return@update d
-            val elapsed = daysBetween(last, today)
-            val under = last.isNotEmpty() && d.settings.todayReels <= d.settings.reelLimit
-            val days = (if (under) d.settings.daysUnderLimit + 1 else d.settings.daysUnderLimit).coerceIn(0, 7)
-            val habits = if (elapsed > 0) d.habits.map { rollGrid(it, elapsed) } else d.habits
-            d.copy(
-                settings = d.settings.copy(todayReels = 0, reelSeconds = 0, lastReelDay = today, daysUnderLimit = days),
-                habits = habits,
-            )
-        }
-    }
-
-    private fun daysBetween(last: String, today: String): Int {
-        if (last.isEmpty()) return 0
-        return try {
-            ChronoUnit.DAYS.between(LocalDate.parse(last), LocalDate.parse(today)).toInt().coerceIn(0, 28)
-        } catch (e: Exception) { 1 }
-    }
-
-    /** Advance a 28-cell habit history by [shift] days so the last cell is always today. */
-    private fun rollGrid(h: Habit, shift: Int): Habit {
-        if (h.grid.isEmpty()) return h.copy(grid = List(28) { 0 })
-        val n = h.grid.size
-        val s = shift.coerceIn(0, n)
-        if (s == 0) return h
-        return h.copy(grid = (h.grid.drop(s) + List(s) { 0 }).takeLast(n))
-    }
+    // ── daily reset (shared with the service) ──
+    fun ensureDay() = viewModelScope.launch { repo.rolloverIfNeeded() }
 
     // ── toast ──
     fun flash(msg: String) = showToast(ToastState(msg, true), 1800)

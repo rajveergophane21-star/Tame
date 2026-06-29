@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.tame.app.data.model.Habit
 import com.tame.app.data.model.TameData
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
@@ -15,6 +16,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import java.text.SimpleDateFormat
+import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 import java.util.Date
 import java.util.Locale
 
@@ -54,6 +57,39 @@ class TameRepository(context: Context) {
 
     /** Blocking variant of [update] for non-coroutine callers (services/receivers). */
     fun updateBlocking(transform: (TameData) -> TameData) = runBlocking { update(transform) }
+
+    /**
+     * Reset today's reel count/time and advance habit history when the calendar day
+     * changes — safe to call from anywhere (app or service); no-ops if already today.
+     */
+    suspend fun rolloverIfNeeded() = update { d ->
+        val today = today()
+        val last = d.settings.lastReelDay
+        if (last == today) return@update d
+        val elapsed = daysBetween(last, today)
+        val under = last.isNotEmpty() && d.settings.todayReels <= d.settings.reelLimit
+        val daysUnder = (if (under) d.settings.daysUnderLimit + 1 else d.settings.daysUnderLimit).coerceIn(0, 7)
+        val habits = if (elapsed > 0) d.habits.map { rollGrid(it, elapsed) } else d.habits
+        d.copy(
+            settings = d.settings.copy(todayReels = 0, reelSeconds = 0, lastReelDay = today, daysUnderLimit = daysUnder),
+            habits = habits,
+        )
+    }
+
+    private fun daysBetween(last: String, today: String): Int {
+        if (last.isEmpty()) return 0
+        return try {
+            ChronoUnit.DAYS.between(LocalDate.parse(last), LocalDate.parse(today)).toInt().coerceIn(0, 28)
+        } catch (e: Exception) { 1 }
+    }
+
+    private fun rollGrid(h: Habit, shift: Int): Habit {
+        if (h.grid.isEmpty()) return h.copy(grid = List(28) { 0 })
+        val n = h.grid.size
+        val s = shift.coerceIn(0, n)
+        if (s == 0) return h
+        return h.copy(grid = (h.grid.drop(s) + List(s) { 0 }).takeLast(n))
+    }
 
     companion object {
         fun today(): String =
