@@ -197,8 +197,8 @@ class TameAccessibilityService : AccessibilityService() {
 
         if (scan.onFeed) {
             tickFeedTime(now)
-            // content-based counting (Instagram/YouTube): a substantial caption change = new reel
-            if (app.reelTextIds.isNotEmpty() && scan.reelText != null) maybeCountReel(key, scan.reelText)
+            // content-based counting (Instagram caption / YouTube @handle): a substantial change = new reel
+            if ((app.reelTextIds.isNotEmpty() || app.reelSignature) && scan.reelText != null) maybeCountReel(key, scan.reelText)
 
             if (!snoozed(key)) {
                 data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.isActiveAt(now) }?.let { rule ->
@@ -260,16 +260,26 @@ class TameAccessibilityService : AccessibilityService() {
         val key = AppCatalog.keyForPackage(pkg) ?: return
         if (key != feedKey) return
         val app = AppCatalog[key] ?: return
-        // apps with caption text (IG/YT) are counted by content change; only scroll-count the rest
+        // Instagram is counted by caption change in handleForeground — don't scroll-count it.
         if (app.reelTextIds.isNotEmpty()) return
-        // only count/draw while the short/reel section is actually on screen
-        if (!onFeedNow) return
         val now = System.currentTimeMillis()
         if (now - lastScrollAt < 700) return
         lastScrollAt = now
+        // A swipe needs the live window to decide what's on screen. Re-scan here: it both
+        // refreshes the on-feed flag (which foreground events can lag behind on a fast swipe)
+        // and gives us the current item's signature for YouTube counting.
+        val root = rootInActiveWindow
+        val scan = if (root != null) scanFeed(root, app) else null
+        if (scan != null) onFeedNow = scan.onFeed
+        if (!onFeedNow) return
 
-        // count this reel in memory; enforcement (limit / active rule) is handled in handleForeground
-        bumpReel()
+        // YouTube: count distinct Shorts by content signature (deduped, so this and the
+        // content-changed path can't double-count). Others: one count per swipe.
+        if (app.reelSignature) {
+            scan?.reelText?.let { maybeCountReel(key, it) }
+        } else {
+            bumpReel()
+        }
         if (!data.settings.counterEnabled) return
         val reels = currentReels()
         val limitRule = data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.limit > 0 }
@@ -345,6 +355,8 @@ class TameAccessibilityService : AccessibilityService() {
         var hasNotFeed = false    // a "not the immersive feed" marker (bottom nav home tab)
         var hasSelectedTab = false // the feed's own tab is selected (Reels tab)
         val text = StringBuilder()
+        var handle: String? = null // creator @handle (YouTube signature, preferred — stable per Short)
+        var longest = ""           // fallback signature: the longest text on screen (the title)
         val queue = ArrayDeque<AccessibilityNodeInfo>()
         queue.add(root)
         var visited = 0
@@ -357,6 +369,12 @@ class TameAccessibilityService : AccessibilityService() {
                 if (!hasNotFeed && app.notFeedIds.any { id.contains(it) }) hasNotFeed = true
                 if (!hasSelectedTab && node.isSelected && app.feedSelectedIds.any { id.contains(it) }) hasSelectedTab = true
                 if (app.reelTextIds.any { id.contains(it) }) appendNodeText(node, text)
+            }
+            if (app.reelSignature) {
+                node.text?.toString()?.trim()?.let { t ->
+                    if (handle == null && t.startsWith("@") && t.length in 2..40) handle = t
+                    if (t.length in 6..120 && t.length > longest.length) longest = t
+                }
             }
             if (app.feedDesc.isNotEmpty() && !hasDesc) {
                 node.contentDescription?.toString()?.lowercase()?.let { d ->
@@ -371,7 +389,11 @@ class TameAccessibilityService : AccessibilityService() {
         // On the feed when its tab is selected, OR reel content is up and the bottom-nav
         // home tab is absent (i.e. the immersive viewer, not the home feed's inline reels).
         val onFeed = hasSelectedTab || ((hasFeedView || hasDesc) && !hasNotFeed)
-        return FeedScan(onFeed, text.toString().trim().ifBlank { null })
+        val reelText = when {
+            app.reelSignature -> handle ?: longest.ifBlank { null }
+            else -> text.toString().trim().ifBlank { null }
+        }
+        return FeedScan(onFeed, reelText)
     }
 
     /** Collect text from a node's small subtree (the caption/author block). */

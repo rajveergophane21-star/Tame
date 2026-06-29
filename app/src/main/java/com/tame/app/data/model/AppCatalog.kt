@@ -31,6 +31,9 @@ data class KnownApp(
     val feedIsWholeApp: Boolean = false,
     val notFeedIds: List<String> = emptyList(),
     val feedSelectedIds: List<String> = emptyList(),
+    // Count distinct items by a content signature (the creator @handle / title) instead of
+    // specific caption ids — used for YouTube, whose caption view-ids change between versions.
+    val reelSignature: Boolean = false,
 )
 
 object AppCatalog {
@@ -48,11 +51,13 @@ object AppCatalog {
         KnownApp(
             "yt", "YouTube", "YT", 0xFFFF0000, 0xFFFFFFFF, feed = "Shorts",
             packages = listOf("com.google.android.youtube", "app.revanced.android.youtube"),
-            // reel_progress_bar is the Shorts player's progress bar — present only while a
-            // Short is playing, never on the home feed's Shorts shelf (verified against the
-            // open-source Shorts-Blocker project). Count Shorts by swipe: the per-Short
-            // caption view ids are unreliable across YouTube versions.
-            feedViewIds = listOf("reel_progress_bar", "reel_player_page"),
+            // The Shorts immersive player carries reel_watch_* / reel_player_* / reel_progress_bar
+            // ids (verified across the sankalp and Shorts-Blocker projects). None of these appear
+            // on the home feed's Shorts shelf, so the counter stays off the home feed. Multiple
+            // candidates give cross-version coverage. Count Shorts by swipe — the per-Short caption
+            // view ids are unreliable across YouTube versions.
+            feedViewIds = listOf("reel_watch", "reel_progress_bar", "reel_player_underlay", "reel_player_page"),
+            reelSignature = true,
         ),
         KnownApp(
             "tt", "TikTok", "TT", 0xFF0B0B0B, 0xFFFFFFFF, feed = "For You",
