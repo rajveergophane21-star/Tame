@@ -1,5 +1,6 @@
 package com.tame.app.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -26,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -64,12 +66,11 @@ fun AddRuleScreen(vm: AppViewModel) {
         if (pickedN > 0) "Choose targets · $pickedN selected" else "Choose targets"
 
     val q = d.search.trim().lowercase()
-    val pool = if (d.kind == RuleKind.FEED) AppCatalog.feedKeys else AppCatalog.apps.map { it.key }
-    val picks = pool.filter { key ->
-        val app = AppCatalog[key]
-        q.isEmpty() || (app?.name?.lowercase()?.contains(q) == true)
+    val feedPicks = AppCatalog.feedKeys.filter { key ->
+        q.isEmpty() || (AppCatalog[key]?.name?.lowercase()?.contains(q) == true)
     }
-    val noPicks = d.kind == RuleKind.APP && q.isNotEmpty() && picks.isEmpty()
+    val appPicks = vm.installedApps.filter { q.isEmpty() || it.label.lowercase().contains(q) }
+    val noPicks = d.kind == RuleKind.APP && q.isNotEmpty() && appPicks.isEmpty() && vm.installedApps.isNotEmpty()
 
     Box(
         Modifier
@@ -184,24 +185,43 @@ fun AddRuleScreen(vm: AppViewModel) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 264.dp)
+                        .heightIn(max = 300.dp)
+                        .verticalScroll(rememberScrollState())
                         .padding(1.dp),
                     verticalArrangement = Arrangement.spacedBy(9.dp),
                 ) {
-                    picks.forEach { key ->
-                        val app = AppCatalog[key]
-                        val sel = d.targets.contains(key)
-                        val sub = if (d.kind == RuleKind.FEED) (app?.feed ?: "") else "App"
-                        PickRow(
-                            key = key,
-                            name = app?.name ?: key,
-                            sub = sub,
-                            selected = sel,
-                            accentColor = a.primary,
-                        ) { vm.toggleDraftTarget(key) }
-                    }
-                    if (noPicks) {
-                        NoResults(d.search)
+                    if (d.kind == RuleKind.FEED) {
+                        feedPicks.forEach { key ->
+                            val app = AppCatalog[key]
+                            PickRow(
+                                name = app?.name ?: key,
+                                sub = app?.feed ?: "",
+                                selected = d.targets.contains(key),
+                                accentColor = a.primary,
+                                onClick = { vm.toggleDraftTarget(key) },
+                            ) { AppSquare(key = key, size = 40.dp, corner = 12.dp, fontSize = 14.sp) }
+                        }
+                    } else {
+                        if (vm.installedApps.isEmpty()) {
+                            Text(
+                                "Loading your apps…",
+                                modifier = Modifier.padding(vertical = 18.dp),
+                                style = TextStyle(
+                                    fontFamily = Hanken, fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.sp, color = TameColors.TextFaint2,
+                                ),
+                            )
+                        }
+                        appPicks.forEach { entry ->
+                            PickRow(
+                                name = entry.label,
+                                sub = "App",
+                                selected = d.targets.contains(entry.packageName),
+                                accentColor = a.primary,
+                                onClick = { vm.toggleDraftTarget(entry.packageName) },
+                            ) { AppIconImage(entry.icon, entry.label) }
+                        }
+                        if (noPicks) NoResults(d.search)
                     }
                 }
             }
@@ -469,13 +489,34 @@ private fun SegBtn(
 }
 
 @Composable
+private fun AppIconImage(icon: ImageBitmap?, label: String) {
+    if (icon != null) {
+        Image(
+            bitmap = icon,
+            contentDescription = label,
+            modifier = Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)),
+        )
+    } else {
+        Box(
+            modifier = Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(TameColors.FieldBg),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                label.take(1).uppercase(),
+                style = TextStyle(fontFamily = Bricolage, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = TameColors.TextSoft),
+            )
+        }
+    }
+}
+
+@Composable
 private fun PickRow(
-    key: String,
     name: String,
     sub: String,
     selected: Boolean,
     accentColor: Color,
     onClick: () -> Unit,
+    leading: @Composable () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -492,7 +533,7 @@ private fun PickRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(13.dp),
     ) {
-        AppSquare(key = key, size = 40.dp, corner = 12.dp, fontSize = 14.sp)
+        leading()
         Column(Modifier.weight(1f)) {
             Text(
                 name,

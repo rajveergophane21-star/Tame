@@ -4,8 +4,13 @@ import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.tame.app.util.AppEntry
+import com.tame.app.util.InstalledApps
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.tame.app.TameApp
 import com.tame.app.alarm.AlarmScheduler
 import com.tame.app.data.TameRepository
@@ -38,7 +43,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // ── transient UI state ──
     var screen by mutableStateOf(if (data.settings.onboarded) Screen.HOME else Screen.ONBOARDING); private set
     var onbStep by mutableStateOf(0); private set
-    var selApps by mutableStateOf(setOf("ig", "yt")); private set
+    var selApps by mutableStateOf(emptySet<String>()); private set
 
     var draft by mutableStateOf<Draft?>(null); private set
     var detailId by mutableStateOf<String?>(null); private set
@@ -51,9 +56,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var focus by mutableStateOf<FocusState?>(null); private set
     var alarmHabitId by mutableStateOf<String?>(null); private set
 
-    var reelsApp by mutableStateOf("ig"); private set
-    var reelIndex by mutableStateOf(0); private set
-    private var reelsTriggered = false
+    // ── installed apps (for the "whole app" picker + rule rendering) ──
+    var installedApps by mutableStateOf<List<AppEntry>>(emptyList()); private set
+    private var appsLoaded = false
 
     // ── system bridge / permissions ──
     var systemActions: SystemActions? = null
@@ -66,7 +71,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         viewModelScope.launch { repo.data.collect { data = it } }
+        loadInstalledApps()
     }
+
+    fun loadInstalledApps() {
+        if (appsLoaded) return
+        appsLoaded = true
+        viewModelScope.launch(Dispatchers.IO) {
+            val apps = InstalledApps.load(getApplication())
+            withContext(Dispatchers.Main) { installedApps = apps }
+        }
+    }
+
+    /** Icon for a rule target (package). Feed keys use branded badges instead. */
+    fun iconBitmap(target: String): ImageBitmap? =
+        installedApps.firstOrNull { it.packageName == target }?.icon ?: InstalledApps.entry(target)?.icon
 
     // ── derived helpers ──
     val settings get() = data.settings
@@ -104,7 +123,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun currentRule(): Rule? = rules.firstOrNull { it.id == detailId }
     fun alarmHabit(): Habit? = habits.firstOrNull { it.id == alarmHabitId }
-    fun appName(key: String): String = AppCatalog[key]?.name ?: key
+    fun appName(target: String): String =
+        AppCatalog[target]?.name
+            ?: installedApps.firstOrNull { it.packageName == target }?.label
+            ?: InstalledApps.entry(target)?.label
+            ?: target
 
     fun ruleTitle(rule: Rule, max: Int = 2): String {
         val names = rule.targets.map { appName(it) }
@@ -169,7 +192,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // ── home ──
-    fun openReels() { reelsTriggered = false; screen = Screen.REELS }
     fun openFocusSheet() { sheet = "focus" }
     fun closeSheet() { sheet = null }
     fun openRule(id: String) { detailId = id; screen = Screen.DETAIL }
@@ -288,31 +310,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
     fun frictionStay() { frictionJob?.cancel(); screen = Screen.HOME }
-    fun frictionOpen() { frictionJob?.cancel(); reelsTriggered = false; screen = Screen.REELS }
-
-    // ── reels feed + counter ──
-    fun feedRuleFor(app: String): Rule? = rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(app) }
-
-    fun scrollReel() {
-        reelIndex += 1
-        // increment relative to the persisted value (race-free under rapid taps)
-        persist { d -> d.copy(settings = d.settings.copy(todayReels = d.settings.todayReels + 1)) }
-        val n = settings.todayReels + 1
-        if (n >= settings.reelLimit && !reelsTriggered) {
-            reelsTriggered = true
-            val rule = feedRuleFor(reelsApp)
-            val mode = rule?.mode ?: RuleMode.FRICTION
-            val feedName = AppCatalog[reelsApp]?.feed ?: "this feed"
-            viewModelScope.launch {
-                delay(350)
-                if (mode == RuleMode.BLOCK) {
-                    block = BlockState(name = feedName, iconKey = reelsApp, lifts = "tomorrow", kind = RuleKind.FEED)
-                    screen = Screen.BLOCK
-                } else startFriction(feedName, RuleKind.FEED)
-            }
-        }
-    }
-    fun exitReels() { screen = Screen.HOME }
+    fun frictionOpen() { frictionJob?.cancel(); screen = Screen.HOME }
 
     // ── focus ──
     fun setFocus(min: Int, label: String) {
@@ -468,25 +466,4 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private fun persist(transform: (TameData) -> TameData) {
         viewModelScope.launch { repo.update(transform) }
     }
-
-    companion object {
-        val reelDeck = listOf(
-            ReelItem("@dailyloop", "just one more · keep scrolling", "18.2k", "312", 0xFFE1306C),
-            ReelItem("@latenightbites", "wait for it…", "44.7k", "1.2k", 0xFF7A3FF2),
-            ReelItem("@themotivator", "you didn't come this far to only come this far", "9,841", "88", 0xFF0E7C66),
-            ReelItem("@doomscroll.fm", "3am and still here, huh", "120k", "4.5k", 0xFF1F4FD8),
-            ReelItem("@quickcuts", "this one trick changed everything", "67.3k", "903", 0xFFE0561B),
-            ReelItem("@softpaws", "tiny cat, big attitude", "231k", "7.7k", 0xFFC81E5A),
-            ReelItem("@hustle.daily", "while you scroll, they build", "15.6k", "440", 0xFF0B7285),
-            ReelItem("@oddlysat", "you can't look away", "89.1k", "2.1k", 0xFF6D28C9),
-        )
-    }
 }
-
-data class ReelItem(
-    val handle: String,
-    val caption: String,
-    val likes: String,
-    val comments: String,
-    val hue: Long,
-)

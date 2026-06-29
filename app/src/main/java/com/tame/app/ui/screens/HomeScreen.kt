@@ -142,6 +142,11 @@ fun HomeScreen(vm: AppViewModel) {
             }
         }
 
+        // ── permission banner (blocking can't work without these) ──
+        if (!vm.permAccess || !vm.permOverlay) {
+            PermissionBanner(vm)
+        }
+
         // ── HERO card ──
         Box(
             modifier = Modifier
@@ -149,7 +154,6 @@ fun HomeScreen(vm: AppViewModel) {
                 .shadow(8.dp, RoundedCornerShape(28.dp), clip = false)
                 .clip(RoundedCornerShape(28.dp))
                 .background(heroBg)
-                .tap { vm.openReels() }
                 .padding(start = 22.dp, top = 24.dp, end = 22.dp, bottom = 22.dp),
         ) {
             Row(
@@ -313,6 +317,55 @@ fun HomeScreen(vm: AppViewModel) {
 }
 
 @Composable
+private fun PermissionBanner(vm: AppViewModel) {
+    val a = accent
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(TameColors.Ink)
+            .padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            "Finish setup to start blocking",
+            style = TextStyle(fontFamily = Bricolage, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = Color.White),
+        )
+        Text(
+            "Tame needs these two permissions before it can block apps, pause feeds, or count reels.",
+            style = TextStyle(fontFamily = Hanken, fontSize = 13.sp, color = TameColors.OnDarkSub, lineHeight = 18.sp),
+        )
+        if (!vm.permAccess) {
+            PermissionAction("Turn on accessibility access") { vm.requestAccess() }
+        }
+        if (!vm.permOverlay) {
+            PermissionAction("Allow display over other apps") { vm.requestOverlay() }
+        }
+    }
+}
+
+@Composable
+private fun PermissionAction(label: String, onClick: () -> Unit) {
+    val a = accent
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(a.primary)
+            .tap { onClick() }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            label,
+            style = TextStyle(fontFamily = Hanken, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White),
+        )
+        TameIcons.ArrowRight(18.dp, Color.White)
+    }
+}
+
+@Composable
 private fun RuleRow(vm: AppViewModel, r: Rule) {
     val a = accent
     val block = r.mode == RuleMode.BLOCK
@@ -328,7 +381,7 @@ private fun RuleRow(vm: AppViewModel, r: Rule) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(13.dp),
     ) {
-        AppIconStack(r.targets, 46.dp)
+        AppIconStack(r.targets, 46.dp, iconFor = vm::iconBitmap)
         Column(modifier = Modifier.weight(1f)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,

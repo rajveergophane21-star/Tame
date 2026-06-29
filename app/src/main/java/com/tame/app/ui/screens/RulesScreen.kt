@@ -114,7 +114,7 @@ fun RulesScreen(vm: AppViewModel) {
         Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
             vm.rules.forEach { r ->
                 RuleCard(
-                    iconStack = { AppIconStack(r.targets, 48.dp) },
+                    iconStack = { AppIconStack(r.targets, 48.dp, iconFor = vm::iconBitmap) },
                     title = vm.ruleTitle(r, 2),
                     committed = r.committed,
                     sub = (if (r.kind == RuleKind.FEED) "Feed" else "App") + " · " + schedLabel(r),

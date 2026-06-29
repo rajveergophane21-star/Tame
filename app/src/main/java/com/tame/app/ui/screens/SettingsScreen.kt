@@ -284,51 +284,6 @@ fun SettingsScreen(vm: AppViewModel) {
             }
         }
 
-        // ── replay intro ──
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .shadow(1.dp, RoundedCornerShape(18.dp), clip = false)
-                .clip(RoundedCornerShape(18.dp))
-                .background(TameColors.Card)
-                .tap { vm.replayIntro() }
-                .padding(horizontal = 18.dp, vertical = 15.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(13.dp),
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(11.dp))
-                    .background(TameColors.FieldBg),
-                contentAlignment = Alignment.Center,
-            ) {
-                TameIcons.Replay(19.dp, TameColors.TextFaint, sw = 2f)
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    "Replay intro",
-                    style = TextStyle(
-                        fontFamily = Hanken,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.5.sp,
-                        color = TameColors.Ink,
-                    ),
-                )
-                Spacer(Modifier.height(1.dp))
-                Text(
-                    "See how Frank works again",
-                    style = TextStyle(
-                        fontFamily = Hanken,
-                        fontWeight = FontWeight.Normal,
-                        fontSize = 12.5.sp,
-                        color = TameColors.TextFaint,
-                    ),
-                )
-            }
-            TameIcons.ChevronRight(20.dp, TameColors.IconFaint, sw = 2.4f)
-        }
-
         // ── footer ──
         Spacer(Modifier.height(4.dp))
         Text(

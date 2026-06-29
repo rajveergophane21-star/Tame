@@ -8,13 +8,19 @@ import android.text.TextUtils
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.core.view.WindowCompat
 import com.tame.app.service.TameAccessibilityService
 import com.tame.app.ui.AppViewModel
+import com.tame.app.ui.CrashScreen
 import com.tame.app.ui.SystemActions
 import com.tame.app.ui.TameRoot
 import com.tame.app.ui.theme.Accents
 import com.tame.app.ui.theme.TameTheme
+import com.tame.app.util.CrashReporter
 
 class MainActivity : ComponentActivity(), SystemActions {
 
@@ -25,10 +31,17 @@ class MainActivity : ComponentActivity(), SystemActions {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         vm.systemActions = this
         maybeRequestNotifications()
+        val initialCrash = CrashReporter.consume(this)
         setContent {
+            var crash by remember { mutableStateOf(initialCrash) }
             val palette = Accents.byKey(vm.settings.accentKey)
             TameTheme(accent = palette) {
-                TameRoot(vm)
+                val current = crash
+                if (current != null) {
+                    CrashScreen(current) { CrashReporter.clear(this@MainActivity); crash = null }
+                } else {
+                    TameRoot(vm)
+                }
             }
         }
         vm.rescheduleAllAlarms()

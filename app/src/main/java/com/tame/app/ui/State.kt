@@ -6,7 +6,7 @@ import com.tame.app.data.model.SchedMode
 
 enum class Screen {
     ONBOARDING, HOME, RULES, ADD_RULE, DETAIL, HABITS, SETTINGS,
-    BLOCK, FRICTION, FOCUS_RUN, REELS, ALARM,
+    BLOCK, FRICTION, FOCUS_RUN, ALARM,
 }
 
 /** Draft state for the Add / Edit rule flow. */

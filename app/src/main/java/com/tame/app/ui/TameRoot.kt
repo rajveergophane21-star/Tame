@@ -27,10 +27,9 @@ import com.tame.app.ui.takeover.AlarmTakeover
 import com.tame.app.ui.takeover.BlockTakeover
 import com.tame.app.ui.takeover.FocusRunTakeover
 import com.tame.app.ui.takeover.FrictionTakeover
-import com.tame.app.ui.takeover.ReelsTakeover
 import com.tame.app.ui.theme.TameColors
 
-private val darkScreens = setOf(Screen.BLOCK, Screen.FRICTION, Screen.FOCUS_RUN, Screen.REELS, Screen.ALARM)
+private val darkScreens = setOf(Screen.BLOCK, Screen.FRICTION, Screen.FOCUS_RUN, Screen.ALARM)
 private val navScreens = setOf(Screen.HOME, Screen.RULES, Screen.HABITS, Screen.SETTINGS, Screen.DETAIL)
 
 @Composable
@@ -61,7 +60,6 @@ fun TameRoot(vm: AppViewModel) {
             Screen.BLOCK -> BlockTakeover(vm)
             Screen.FRICTION -> FrictionTakeover(vm)
             Screen.FOCUS_RUN -> FocusRunTakeover(vm)
-            Screen.REELS -> ReelsTakeover(vm)
             Screen.ALARM -> AlarmTakeover(vm)
         }
 

@@ -95,7 +95,7 @@ fun RuleDetailScreen(vm: AppViewModel) {
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Box(modifier = Modifier.size(58.dp)) {
-                AppIconStack(r.targets, 58.dp)
+                AppIconStack(r.targets, 58.dp, iconFor = vm::iconBitmap)
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -250,30 +250,6 @@ fun RuleDetailScreen(vm: AppViewModel) {
                     ),
                 )
             }
-        }
-
-        // ── preview stop button ──
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(54.dp)
-                .clip(RoundedCornerShape(30.dp))
-                .background(TameColors.Ink)
-                .tap { vm.previewStop() },
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-        ) {
-            TameIcons.Eye(18.dp, Color.White, sw = 2.2f)
-            Spacer(Modifier.size(9.dp))
-            Text(
-                "Preview the stop screen",
-                style = TextStyle(
-                    fontFamily = Hanken,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    color = Color.White,
-                ),
-            )
         }
     }
 }

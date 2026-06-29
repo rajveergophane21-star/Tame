@@ -1,9 +1,12 @@
 package com.tame.app.ui.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.ImageBitmap
+import com.tame.app.ui.theme.TameColors
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,15 +57,20 @@ fun AppSquare(
  * with a white ring on the front tile (matching the design's appIconStack).
  */
 @Composable
-fun AppIconStack(targets: List<String>, size: Dp, modifier: Modifier = Modifier) {
+fun AppIconStack(
+    targets: List<String>,
+    size: Dp,
+    modifier: Modifier = Modifier,
+    iconFor: (String) -> ImageBitmap? = { null },
+) {
     val t = targets.take(2)
     Box(modifier = modifier.size(size)) {
         if (t.size <= 1) {
-            AppSquare(t.firstOrNull() ?: "?", size, size * 0.3f, (size.value * 0.34f).sp)
+            TargetTile(t.firstOrNull() ?: "?", size, iconFor)
         } else {
             val d = size * 0.74f
             // back tile (top-left)
-            AppSquare(t[0], d, d * 0.3f, (d.value * 0.34f).sp, Modifier.align(Alignment.TopStart))
+            TargetTile(t[0], d, iconFor, Modifier.align(Alignment.TopStart))
             // front tile (bottom-right) with white ring
             Box(
                 modifier = Modifier
@@ -72,7 +80,28 @@ fun AppIconStack(targets: List<String>, size: Dp, modifier: Modifier = Modifier)
                     .background(Color.White),
                 contentAlignment = Alignment.Center,
             ) {
-                AppSquare(t[1], d, d * 0.3f, (d.value * 0.34f).sp)
+                TargetTile(t[1], d, iconFor)
+            }
+        }
+    }
+}
+
+/** One tile: branded badge for catalog feed keys, real icon for installed packages. */
+@Composable
+private fun TargetTile(target: String, size: Dp, iconFor: (String) -> ImageBitmap?, modifier: Modifier = Modifier) {
+    val catalog = AppCatalog[target]
+    when {
+        catalog != null -> AppSquare(target, size, size * 0.3f, (size.value * 0.34f).sp, modifier)
+        else -> {
+            val bmp = iconFor(target)
+            if (bmp != null) {
+                Image(
+                    bitmap = bmp,
+                    contentDescription = null,
+                    modifier = modifier.size(size).clip(RoundedCornerShape(size * 0.3f)),
+                )
+            } else {
+                Box(modifier = modifier.size(size).clip(RoundedCornerShape(size * 0.3f)).background(TameColors.FieldBg))
             }
         }
     }

@@ -57,18 +57,18 @@ class TameAccessibilityService : AccessibilityService() {
 
     private fun handleForeground(pkg: String) {
         val now = System.currentTimeMillis()
-        val key = AppCatalog.keyForPackage(pkg)
-        if (key == null) { clearFeed(); return }
-        val app = AppCatalog[key] ?: return
 
-        // 1) Whole-app block / friction
-        data.rules.firstOrNull { it.kind == RuleKind.APP && it.targets.contains(key) && it.isActiveAt(now) }?.let { rule ->
+        // 1) Whole-app block / friction — APP rule targets are package names
+        data.rules.firstOrNull { it.kind == RuleKind.APP && it.targets.contains(pkg) && it.isActiveAt(now) }?.let { rule ->
             clearFeed()
-            enforce(rule.mode, app.name, liftLabel(rule))
+            enforce(rule.mode, appLabel(pkg), liftLabel(rule))
             return
         }
 
-        // 2) Short-form feed
+        // 2) Short-form feed — FEED rule targets are catalog feed keys
+        val key = AppCatalog.keyForPackage(pkg)
+        if (key == null) { clearFeed(); return }
+        val app = AppCatalog[key] ?: return
         if (isFeedOnScreen(key)) {
             feedKey = key
             val feedName = app.feed ?: app.name
@@ -139,6 +139,9 @@ class TameAccessibilityService : AccessibilityService() {
         }
         runCatching { startActivity(intent) }
     }
+
+    private fun appLabel(pkg: String): String =
+        com.tame.app.util.InstalledApps.label(this, pkg)
 
     private fun clearFeed() {
         if (feedKey != null) {
