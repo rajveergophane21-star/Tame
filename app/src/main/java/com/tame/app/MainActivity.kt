@@ -1,0 +1,75 @@
+package com.tame.app
+
+import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
+import android.provider.Settings
+import android.text.TextUtils
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.viewModels
+import androidx.core.view.WindowCompat
+import com.tame.app.service.TameAccessibilityService
+import com.tame.app.ui.AppViewModel
+import com.tame.app.ui.SystemActions
+import com.tame.app.ui.TameRoot
+import com.tame.app.ui.theme.Accents
+import com.tame.app.ui.theme.TameTheme
+
+class MainActivity : ComponentActivity(), SystemActions {
+
+    private val vm: AppViewModel by viewModels()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        vm.systemActions = this
+        maybeRequestNotifications()
+        setContent {
+            val palette = Accents.byKey(vm.settings.accentKey)
+            TameTheme(accent = palette) {
+                TameRoot(vm)
+            }
+        }
+        vm.rescheduleAllAlarms()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        vm.refreshPerms()
+        vm.ensureDay()
+    }
+
+    private fun maybeRequestNotifications() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            val perm = android.Manifest.permission.POST_NOTIFICATIONS
+            if (checkSelfPermission(perm) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(perm), 1001)
+            }
+        }
+    }
+
+    // ── SystemActions ──
+    override fun openAccessibilitySettings() {
+        startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+    }
+
+    override fun openOverlaySettings() {
+        startActivity(
+            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
+        )
+    }
+
+    override fun isAccessibilityOn(): Boolean {
+        val expected = "$packageName/${TameAccessibilityService::class.java.name}"
+        val enabled = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: return false
+        val splitter = TextUtils.SimpleStringSplitter(':')
+        splitter.setString(enabled)
+        while (splitter.hasNext()) {
+            if (splitter.next().equals(expected, ignoreCase = true)) return true
+        }
+        return false
+    }
+
+    override fun isOverlayOn(): Boolean = Settings.canDrawOverlays(this)
+}
