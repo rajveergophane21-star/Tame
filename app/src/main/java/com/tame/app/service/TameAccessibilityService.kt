@@ -33,6 +33,10 @@ class TameAccessibilityService : AccessibilityService() {
     private var lastTriggerAt = 0L
     private var lastContentEvalAt = 0L
 
+    // feed time tracking
+    private var feedTickAt = 0L
+    private var feedMillisAcc = 0L
+
     private var blockOverlay: BlockOverlay? = null
     private var blockedPkg: String? = null
     private val snoozeUntil = HashMap<String, Long>()
@@ -81,39 +85,59 @@ class TameAccessibilityService : AccessibilityService() {
         val key = AppCatalog.keyForPackage(pkg)
         if (key == null) { clearFeed(); return }
         val app = AppCatalog[key] ?: return
-        if (isFeedOnScreen(key)) {
-            feedKey = key
-            val feedName = app.feed ?: app.name
-            val activeRule = data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.isActiveAt(now) }
-            val limitRule = data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.limit > 0 }
-            val reels = data.settings.todayReels
-            if (!snoozed(key)) {
-                if (activeRule != null) { clearFeed(); enforce(activeRule.mode, feedName, liftLabel(activeRule), key); return }
-                if (limitRule != null && reels >= limitRule.limit) { enforce(limitRule.mode, feedName, "tomorrow", key); return }
+
+        // We're in a known short-form app. The counter/time follow being IN the app
+        // (package is stable while scrolling, so the overlay never flickers off).
+        // Strict on-screen detection is only used to decide when to BLOCK the feed.
+        if (feedKey != key) { feedKey = key; feedTickAt = now }
+        tickFeedTime(now)
+
+        val detected = isFeedOnScreen(key)
+        val feedName = app.feed ?: app.name
+        if (!snoozed(key) && detected) {
+            data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.isActiveAt(now) }?.let { rule ->
+                clearFeed(); enforce(rule.mode, feedName, liftLabel(rule), key); return
             }
-            val limit = limitRule?.limit ?: data.settings.reelLimit
-            val ratio = if (limit > 0) reels.toFloat() / limit else 0f
-            OverlayManager.showOrUpdate(this, reels, limit, ratio)
-        } else {
-            clearFeed()
+            data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.limit > 0 }?.let { limitRule ->
+                if (data.settings.todayReels >= limitRule.limit) { enforce(limitRule.mode, feedName, "tomorrow", key); return }
+            }
         }
+        val limitRule = data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.limit > 0 }
+        val limit = limitRule?.limit ?: data.settings.reelLimit
+        val reels = data.settings.todayReels
+        val ratio = if (limit > 0) reels.toFloat() / limit else 0f
+        OverlayManager.showOrUpdate(this, reels, limit, ratio)
+    }
+
+    /** Accumulate time-on-feed and flush to storage every few seconds. */
+    private fun tickFeedTime(now: Long) {
+        if (feedTickAt > 0L) {
+            val delta = now - feedTickAt
+            if (delta in 1..15_000L) feedMillisAcc += delta
+        }
+        feedTickAt = now
+        if (feedMillisAcc >= 5_000L) {
+            val addSec = (feedMillisAcc / 1000L).toInt()
+            feedMillisAcc -= addSec * 1000L
+            scope.launch { TameApp.repo.update { it.copy(settings = it.settings.copy(reelSeconds = it.settings.reelSeconds + addSec)) } }
+        }
+    }
+
+    private fun flushFeedTime() {
+        val addSec = (feedMillisAcc / 1000L).toInt()
+        feedMillisAcc = 0L
+        feedTickAt = 0L
+        if (addSec > 0) scope.launch { TameApp.repo.update { it.copy(settings = it.settings.copy(reelSeconds = it.settings.reelSeconds + addSec)) } }
     }
 
     private fun handleScroll(pkg: String) {
         val key = AppCatalog.keyForPackage(pkg) ?: return
         if (key != feedKey) return
         val now = System.currentTimeMillis()
-        // an active feed block/friction rule takes precedence over counting
-        if (!snoozed(key)) {
-            data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.isActiveAt(now) }?.let { rule ->
-                clearFeed()
-                enforce(rule.mode, AppCatalog[key]?.feed ?: "this feed", liftLabel(rule), key)
-                return
-            }
-        }
         if (now - lastScrollAt < 700) return
         lastScrollAt = now
 
+        // count this reel; enforcement (limit / active rule) is handled in handleForeground
         scope.launch {
             TameApp.repo.update { it.copy(settings = it.settings.copy(todayReels = it.settings.todayReels + 1)) }
         }
@@ -122,15 +146,12 @@ class TameAccessibilityService : AccessibilityService() {
         val limit = limitRule?.limit ?: data.settings.reelLimit
         val ratio = if (limit > 0) reels.toFloat() / limit else 0f
         OverlayManager.showOrUpdate(this, reels, limit, ratio)
-        if (limitRule != null && reels >= limitRule.limit && !snoozed(key)) {
-            enforce(limitRule.mode, AppCatalog[key]?.feed ?: "this feed", "tomorrow", key)
-        }
     }
 
     /** Show the stop screen as a TYPE_ACCESSIBILITY_OVERLAY (reliable from a service). */
     private fun enforce(mode: RuleMode, name: String, lifts: String, target: String) {
         val now = System.currentTimeMillis()
-        if (now - lastTriggerAt < 2500 || blockOverlay?.isShowing == true) return
+        if (blockOverlay?.isShowing == true || now - lastTriggerAt < 600) return
         lastTriggerAt = now
         OverlayManager.hide(this)
         if (mode == RuleMode.BLOCK) {
@@ -157,13 +178,16 @@ class TameAccessibilityService : AccessibilityService() {
         blockOverlay?.hide()
         blockOverlay = null
         blockedPkg = null
+        lastTriggerAt = 0L
     }
 
     private fun clearFeed() {
         if (feedKey != null) {
+            flushFeedTime()
             feedKey = null
             OverlayManager.hide(this)
         }
+        feedTickAt = 0L
     }
 
     /** Heuristic: is the app's short-form feed currently on screen? */

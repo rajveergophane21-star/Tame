@@ -68,4 +68,6 @@ interface SystemActions {
     fun openOverlaySettings()
     fun isAccessibilityOn(): Boolean
     fun isOverlayOn(): Boolean
+    /** On Android 12+, ask the user to allow exact alarms so reminders ring on time. */
+    fun requestExactAlarmIfNeeded()
 }

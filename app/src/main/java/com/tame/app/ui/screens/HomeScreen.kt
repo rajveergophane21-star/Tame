@@ -78,7 +78,7 @@ fun HomeScreen(vm: AppViewModel) {
     val heroTitle = when {
         overLimit -> "Frank is fried — feeds locked."
         ratio >= 0.85f -> "Easy now. ${vm.settings.reelLimit - vm.settings.todayReels} left."
-        else -> "${vm.settings.reelMinutes} min watched"
+        else -> "${vm.settings.reelSeconds / 60} min watched"
     }
 
     val focusSub = vm.focus?.let { "On · ${it.label}" } ?: "Block everything for a bit"

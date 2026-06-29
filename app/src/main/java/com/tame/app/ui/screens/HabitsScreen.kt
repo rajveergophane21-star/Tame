@@ -282,20 +282,22 @@ private fun HabitCard(h: Habit, accentColor: Color, popColor: Color, vm: AppView
                 ) {
                     row.forEachIndexed { colIdx, v ->
                         val i = rowIdx * 7 + colIdx
-                        val cell = Modifier
+                        val isToday = i == last
+                        var cell = Modifier
                             .weight(1f)
                             .aspectRatio(1f)
                             .clip(RoundedCornerShape(7.dp))
                             .let {
                                 when {
                                     v == 1 -> it.background(accentColor)
-                                    i == last -> it
+                                    isToday -> it
                                         .background(TameColors.TodayCell)
                                         .dashedBorder(accentColor, 2.dp, 7.dp)
                                     else -> it.background(TameColors.MissedRed)
                                 }
                             }
-                            .tap { vm.toggleHabitDay(h.id, i) }
+                        // only today can be checked off — past days can't be edited (no cheating)
+                        if (isToday) cell = cell.tap { vm.toggleHabit(h.id) }
                         Box(modifier = cell)
                     }
                 }

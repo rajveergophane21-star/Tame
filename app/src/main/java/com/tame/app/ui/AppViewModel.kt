@@ -202,12 +202,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             else h.copy(grid = h.grid.toMutableList().also { it[it.size - 1] = if (it.last() == 1) 0 else 1 })
         })
     }
-    fun toggleHabitDay(id: String, i: Int) = persist { d ->
-        d.copy(habits = d.habits.map { h ->
-            if (h.id != id || i !in h.grid.indices) h
-            else h.copy(grid = h.grid.toMutableList().also { it[i] = if (it[i] == 1) 0 else 1 })
-        })
-    }
 
     // ── add / edit rule ──
     fun startAddRule() { draft = Draft(); screen = Screen.ADD_RULE }
@@ -392,6 +386,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
             saved?.let { syncAlarm(it) }
+            if (saved?.remindOn == true) systemActions?.requestExactAlarmIfNeeded()
             editHabit = null
             flash(if (e.isNew) "Habit added" else "Habit saved")
         }
@@ -432,7 +427,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             val days = (if (under) d.settings.daysUnderLimit + 1 else d.settings.daysUnderLimit).coerceIn(0, 7)
             val habits = if (elapsed > 0) d.habits.map { rollGrid(it, elapsed) } else d.habits
             d.copy(
-                settings = d.settings.copy(todayReels = 0, reelMinutes = 0, lastReelDay = today, daysUnderLimit = days),
+                settings = d.settings.copy(todayReels = 0, reelSeconds = 0, lastReelDay = today, daysUnderLimit = days),
                 habits = habits,
             )
         }

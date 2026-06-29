@@ -75,7 +75,7 @@ data class Settings(
     val blockStyle: String = "frank",     // frank | fullstop | calm
     val reelLimit: Int = 40,              // global default daily reel limit
     val todayReels: Int = 0,              // reels watched today (reset daily)
-    val reelMinutes: Int = 0,             // minutes on feeds today
+    val reelSeconds: Int = 0,             // seconds spent on feeds today (reset daily)
     val lastReelDay: String = "",         // yyyy-MM-dd marker for daily reset
     // rolling stats shown on the "You" screen (real, updated by the services)
     val turnbacks: Int = 0,               // times a block/friction sent you back
