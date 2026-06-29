@@ -116,7 +116,6 @@ fun HabitsScreen(vm: AppViewModel) {
         // ── legend ──
         Row(
             modifier = Modifier
-                .padding(top = (-4).dp)
                 .padding(horizontal = 6.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(15.dp),

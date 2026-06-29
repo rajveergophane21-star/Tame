@@ -50,16 +50,6 @@
             android:taskAffinity=""
             android:theme="@style/Theme.Tame" />
 
-        <!-- Over-other-apps stop screen (block / friction), launched by the service -->
-        <activity
-            android:name=".service.StopActivity"
-            android:exported="false"
-            android:excludeFromRecents="true"
-            android:launchMode="singleInstance"
-            android:showOnLockScreen="true"
-            android:taskAffinity=""
-            android:theme="@style/Theme.Tame" />
-
         <!-- Detects the foreground app + short-form feed -->
         <service
             android:name=".service.TameAccessibilityService"

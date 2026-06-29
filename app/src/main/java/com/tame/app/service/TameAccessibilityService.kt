@@ -10,6 +10,7 @@ import com.tame.app.data.model.RuleKind
 import com.tame.app.data.model.RuleMode
 import com.tame.app.data.model.TameData
 import com.tame.app.ui.liftLabel
+import com.tame.app.ui.theme.Accents
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -32,6 +33,12 @@ class TameAccessibilityService : AccessibilityService() {
     private var lastTriggerAt = 0L
     private var lastContentEvalAt = 0L
 
+    private var blockOverlay: BlockOverlay? = null
+    private var blockedPkg: String? = null
+    private val snoozeUntil = HashMap<String, Long>()
+
+    private fun snoozed(target: String) = System.currentTimeMillis() < (snoozeUntil[target] ?: 0L)
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         scope.launch { TameApp.repo.data.collect { data = it } }
@@ -42,7 +49,12 @@ class TameAccessibilityService : AccessibilityService() {
         val pkg = e.packageName?.toString() ?: return
         if (pkg == packageName) return
         when (e.eventType) {
-            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> { currentPkg = pkg; handleForeground(pkg) }
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
+                currentPkg = pkg
+                // user navigated away from the blocked app/feed -> take the stop screen down
+                if (blockOverlay?.isShowing == true && pkg != blockedPkg) dismissOverlay()
+                handleForeground(pkg)
+            }
             AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
                 // content-changed fires continuously while scrolling — throttle the node traversal
                 val now = System.currentTimeMillis()
@@ -61,7 +73,7 @@ class TameAccessibilityService : AccessibilityService() {
         // 1) Whole-app block / friction — APP rule targets are package names
         data.rules.firstOrNull { it.kind == RuleKind.APP && it.targets.contains(pkg) && it.isActiveAt(now) }?.let { rule ->
             clearFeed()
-            enforce(rule.mode, appLabel(pkg), liftLabel(rule))
+            if (!snoozed(pkg)) enforce(rule.mode, appLabel(pkg), liftLabel(rule), pkg)
             return
         }
 
@@ -72,18 +84,12 @@ class TameAccessibilityService : AccessibilityService() {
         if (isFeedOnScreen(key)) {
             feedKey = key
             val feedName = app.feed ?: app.name
-            // active feed rule blocks the feed during its schedule
-            data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.isActiveAt(now) }?.let { rule ->
-                clearFeed()
-                enforce(rule.mode, feedName, liftLabel(rule))
-                return
-            }
-            // daily reel limit
+            val activeRule = data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.isActiveAt(now) }
             val limitRule = data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.limit > 0 }
             val reels = data.settings.todayReels
-            if (limitRule != null && reels >= limitRule.limit) {
-                enforce(limitRule.mode, feedName, "tomorrow")
-                return
+            if (!snoozed(key)) {
+                if (activeRule != null) { clearFeed(); enforce(activeRule.mode, feedName, liftLabel(activeRule), key); return }
+                if (limitRule != null && reels >= limitRule.limit) { enforce(limitRule.mode, feedName, "tomorrow", key); return }
             }
             val limit = limitRule?.limit ?: data.settings.reelLimit
             val ratio = if (limit > 0) reels.toFloat() / limit else 0f
@@ -98,10 +104,12 @@ class TameAccessibilityService : AccessibilityService() {
         if (key != feedKey) return
         val now = System.currentTimeMillis()
         // an active feed block/friction rule takes precedence over counting
-        data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.isActiveAt(now) }?.let { rule ->
-            clearFeed()
-            enforce(rule.mode, AppCatalog[key]?.feed ?: "this feed", liftLabel(rule))
-            return
+        if (!snoozed(key)) {
+            data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.isActiveAt(now) }?.let { rule ->
+                clearFeed()
+                enforce(rule.mode, AppCatalog[key]?.feed ?: "this feed", liftLabel(rule), key)
+                return
+            }
         }
         if (now - lastScrollAt < 700) return
         lastScrollAt = now
@@ -114,34 +122,42 @@ class TameAccessibilityService : AccessibilityService() {
         val limit = limitRule?.limit ?: data.settings.reelLimit
         val ratio = if (limit > 0) reels.toFloat() / limit else 0f
         OverlayManager.showOrUpdate(this, reels, limit, ratio)
-        if (limitRule != null && reels >= limitRule.limit) {
-            enforce(limitRule.mode, AppCatalog[key]?.feed ?: "this feed", "tomorrow")
+        if (limitRule != null && reels >= limitRule.limit && !snoozed(key)) {
+            enforce(limitRule.mode, AppCatalog[key]?.feed ?: "this feed", "tomorrow", key)
         }
     }
 
-    private fun enforce(mode: RuleMode, name: String, lifts: String) {
+    /** Show the stop screen as a TYPE_ACCESSIBILITY_OVERLAY (reliable from a service). */
+    private fun enforce(mode: RuleMode, name: String, lifts: String, target: String) {
         val now = System.currentTimeMillis()
-        if (now - lastTriggerAt < 2500) return
+        if (now - lastTriggerAt < 2500 || blockOverlay?.isShowing == true) return
         lastTriggerAt = now
         OverlayManager.hide(this)
         if (mode == RuleMode.BLOCK) {
             scope.launch { TameApp.repo.update { it.copy(settings = it.settings.copy(turnbacks = it.settings.turnbacks + 1)) } }
         }
-        val blockStyle = data.settings.blockStyle
-        val accentKey = data.settings.accentKey
-        val intent = Intent(this, StopActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-            putExtra(StopActivity.EXTRA_MODE, if (mode == RuleMode.BLOCK) "block" else "friction")
-            putExtra(StopActivity.EXTRA_NAME, name)
-            putExtra(StopActivity.EXTRA_LIFTS, lifts)
-            putExtra(StopActivity.EXTRA_BLOCK_STYLE, blockStyle)
-            putExtra(StopActivity.EXTRA_ACCENT, accentKey)
+        blockedPkg = currentPkg
+        val palette = Accents.byKey(data.settings.accentKey)
+        val overlay = BlockOverlay(this, palette, onHome = { runCatching { performGlobalAction(GLOBAL_ACTION_HOME) } })
+        blockOverlay = overlay
+        if (mode == RuleMode.BLOCK) {
+            overlay.showBlock(data.settings.blockStyle, name, lifts)
+        } else {
+            overlay.showFriction(name, onOpenAnyway = {
+                snoozeUntil[target] = System.currentTimeMillis() + 60_000L
+                blockedPkg = null
+            })
         }
-        runCatching { startActivity(intent) }
     }
 
     private fun appLabel(pkg: String): String =
         com.tame.app.util.InstalledApps.label(this, pkg)
+
+    private fun dismissOverlay() {
+        blockOverlay?.hide()
+        blockOverlay = null
+        blockedPkg = null
+    }
 
     private fun clearFeed() {
         if (feedKey != null) {
@@ -178,6 +194,7 @@ class TameAccessibilityService : AccessibilityService() {
     override fun onInterrupt() {}
 
     override fun onUnbind(intent: Intent?): Boolean {
+        dismissOverlay()
         OverlayManager.hide(this)
         scope.cancel()
         return super.onUnbind(intent)

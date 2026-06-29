@@ -30,7 +30,6 @@ object OverlayManager {
     private fun dp(ctx: Context, v: Float): Int = (v * ctx.resources.displayMetrics.density).toInt()
 
     fun showOrUpdate(ctx: Context, reels: Int, limit: Int, ratio: Float) {
-        if (!Settings.canDrawOverlays(ctx)) return
         val wm = ctx.getSystemService(WindowManager::class.java)
         val color = when {
             ratio >= 1f -> Color.parseColor("#E1574C")
@@ -83,7 +82,7 @@ object OverlayManager {
             val lp = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
                 PixelFormat.TRANSLUCENT,
             ).apply {
