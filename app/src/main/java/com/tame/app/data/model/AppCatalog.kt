@@ -10,6 +10,12 @@ package com.tame.app.data.model
  *  - [feedDesc]         lowercase content-description substrings indicating the feed (Snap/FB)
  *  - [reelTextIds]      view-id substrings of the caption/author text; a substantial change = a new reel
  *  - [feedIsWholeApp]   the whole app effectively IS the feed (TikTok)
+ *  - [notFeedIds]       view-id substrings that, when present, mean we are NOT in the immersive
+ *                       feed — e.g. the bottom-nav home tab, which is hidden in the reel viewer.
+ *                       Instagram tags inline home-feed reels with the same clips_viewer id as
+ *                       the real viewer, so this is what keeps the counter off the home feed.
+ *  - [feedSelectedIds]  view-id substrings that count as "on feed" only when that node is the
+ *                       selected tab (Instagram's Reels tab), overriding [notFeedIds].
  */
 data class KnownApp(
     val key: String,
@@ -23,6 +29,8 @@ data class KnownApp(
     val feedDesc: List<String> = emptyList(),
     val reelTextIds: List<String> = emptyList(),
     val feedIsWholeApp: Boolean = false,
+    val notFeedIds: List<String> = emptyList(),
+    val feedSelectedIds: List<String> = emptyList(),
 )
 
 object AppCatalog {
@@ -32,6 +40,10 @@ object AppCatalog {
             packages = listOf("com.instagram.android"),
             feedViewIds = listOf("clips_viewer"),
             reelTextIds = listOf("clips_author", "clips_caption"),
+            // Home feed & all normal screens show the bottom nav (feed_tab); the immersive
+            // reel viewer hides it. The Reels tab itself is the selected clips_tab.
+            notFeedIds = listOf("feed_tab"),
+            feedSelectedIds = listOf("clips_tab"),
         ),
         KnownApp(
             "yt", "YouTube", "YT", 0xFFFF0000, 0xFFFFFFFF, feed = "Shorts",

@@ -337,31 +337,40 @@ class TameAccessibilityService : AccessibilityService() {
      */
     private fun scanFeed(root: AccessibilityNodeInfo, app: KnownApp): FeedScan {
         if (app.feedIsWholeApp) return FeedScan(true, null)
-        if (app.feedViewIds.isEmpty() && app.feedDesc.isEmpty()) return FeedScan(false, null)
-        var onFeed = false
+        if (app.feedViewIds.isEmpty() && app.feedDesc.isEmpty() && app.feedSelectedIds.isEmpty()) {
+            return FeedScan(false, null)
+        }
+        var hasFeedView = false   // reel content on screen (e.g. clips_viewer)
+        var hasDesc = false       // feed content-description match (Snap/FB)
+        var hasNotFeed = false    // a "not the immersive feed" marker (bottom nav home tab)
+        var hasSelectedTab = false // the feed's own tab is selected (Reels tab)
         val text = StringBuilder()
         val queue = ArrayDeque<AccessibilityNodeInfo>()
         queue.add(root)
         var visited = 0
-        while (queue.isNotEmpty() && visited < 900) {
+        while (queue.isNotEmpty() && visited < 1000) {
             val node = queue.removeFirst()
             visited++
             val id = node.viewIdResourceName?.lowercase()
             if (id != null) {
-                if (app.feedViewIds.any { id.contains(it) }) onFeed = true
+                if (!hasFeedView && app.feedViewIds.any { id.contains(it) }) hasFeedView = true
+                if (!hasNotFeed && app.notFeedIds.any { id.contains(it) }) hasNotFeed = true
+                if (!hasSelectedTab && node.isSelected && app.feedSelectedIds.any { id.contains(it) }) hasSelectedTab = true
                 if (app.reelTextIds.any { id.contains(it) }) appendNodeText(node, text)
             }
-            if (app.feedDesc.isNotEmpty()) {
+            if (app.feedDesc.isNotEmpty() && !hasDesc) {
                 node.contentDescription?.toString()?.lowercase()?.let { d ->
-                    if (app.feedDesc.any { d.contains(it) }) onFeed = true
+                    if (app.feedDesc.any { d.contains(it) }) hasDesc = true
                 }
             }
-            // Stop early once we've learned what we need: on the feed, and (for apps that
-            // count by caption text) we've captured this reel's text. Saves walking the
-            // rest of the tree on every content-changed event.
-            if (onFeed && (app.reelTextIds.isEmpty() || text.isNotEmpty())) break
+            // A selected feed tab is a definitive "on feed" — stop once we also have the
+            // caption (for caption-counted apps), otherwise keep walking to capture it.
+            if (hasSelectedTab && (app.reelTextIds.isEmpty() || text.isNotEmpty())) break
             for (i in 0 until node.childCount) node.getChild(i)?.let { queue.add(it) }
         }
+        // On the feed when its tab is selected, OR reel content is up and the bottom-nav
+        // home tab is absent (i.e. the immersive viewer, not the home feed's inline reels).
+        val onFeed = hasSelectedTab || ((hasFeedView || hasDesc) && !hasNotFeed)
         return FeedScan(onFeed, text.toString().trim().ifBlank { null })
     }
 
