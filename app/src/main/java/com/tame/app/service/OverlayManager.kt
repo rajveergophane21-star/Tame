@@ -1,10 +1,10 @@
 package com.tame.app.service
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
-import android.os.Build
 import android.provider.Settings
 import android.view.Gravity
 import android.view.View
@@ -19,6 +19,7 @@ import com.tame.app.R
  * Manages the floating "reels watched" counter drawn over the feed app using the
  * display-over-other-apps permission. Built with classic views for reliability.
  */
+@SuppressLint("StaticFieldLeak") // single global overlay; always removed in hide()/onUnbind()
 object OverlayManager {
 
     private var root: View? = null
@@ -79,13 +80,10 @@ object OverlayManager {
             col.addView(countText); col.addView(track)
             pill.addView(frank); pill.addView(col)
 
-            val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            else @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
             val lp = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
-                type,
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
                 PixelFormat.TRANSLUCENT,
             ).apply {

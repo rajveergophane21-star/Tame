@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.addCallback
 import androidx.activity.compose.setContent
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
@@ -65,6 +66,9 @@ class StopActivity : ComponentActivity() {
         val blockStyle = intent.getStringExtra(EXTRA_BLOCK_STYLE) ?: "frank"
         val palette = Accents.byKey(TameApp.repo.snapshot().settings.accentKey)
 
+        // Back press = turn back to home (never silently return to the blocked app).
+        onBackPressedDispatcher.addCallback(this) { goHome() }
+
         setContent {
             TameTheme(accent = palette) {
                 if (mode == "friction") {
@@ -87,8 +91,6 @@ class StopActivity : ComponentActivity() {
     private fun countTurnback() {
         TameApp.repo.updateBlocking { it.copy(settings = it.settings.copy(turnbacks = it.settings.turnbacks + 1)) }
     }
-
-    override fun onBackPressed() { goHome() }
 
     companion object {
         const val EXTRA_MODE = "mode"

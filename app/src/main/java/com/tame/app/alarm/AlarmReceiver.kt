@@ -1,6 +1,5 @@
 package com.tame.app.alarm
 
-import android.app.Notification
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
@@ -41,7 +40,7 @@ class AlarmReceiver : BroadcastReceiver() {
             .setAutoCancel(true)
             .setFullScreenIntent(fsPi, true)
             .setContentIntent(fsPi)
-            .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .build()
 
         context.getSystemService(NotificationManager::class.java)
