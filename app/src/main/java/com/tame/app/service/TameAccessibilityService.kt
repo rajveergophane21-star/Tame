@@ -46,6 +46,14 @@ class TameAccessibilityService : AccessibilityService() {
     private val lastReelText = HashMap<String, String>()
     private val recentReelTexts = HashMap<String, ArrayDeque<String>>()
 
+    // Live in-memory reel count. The floating counter reads this so it updates the
+    // instant a reel is seen — no DataStore round-trip on the display path. New reels
+    // are accumulated here and flushed to disk in batches (every ~10s and on feed exit),
+    // so we write to storage a handful of times instead of once per reel.
+    private var liveReels = -1          // -1 = not yet synced from disk
+    private var unflushedReels = 0      // reels counted since the last flush
+    private var lastReelPersistAt = 0L
+
     private var blockOverlay: BlockOverlay? = null
     private var blockedPkg: String? = null
     private val snoozeUntil = HashMap<String, Long>()
@@ -75,6 +83,7 @@ class TameAccessibilityService : AccessibilityService() {
         override fun run() {
             rolloverCheck()
             recheckApps()
+            maybeFlushReels(System.currentTimeMillis())
             handler.postDelayed(this, 1200)
         }
     }
@@ -88,8 +97,40 @@ class TameAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        scope.launch { TameApp.repo.data.collect { data = it } }
+        scope.launch {
+            TameApp.repo.data.collect { newData ->
+                // A new calendar day (rollover) zeroes today's count on disk; mirror that
+                // into the live in-memory counter so the widget resets too.
+                if (newData.settings.lastReelDay != data.settings.lastReelDay) {
+                    liveReels = newData.settings.todayReels
+                    unflushedReels = 0
+                }
+                data = newData
+            }
+        }
         handler.postDelayed(recheck, 1200)
+    }
+
+    /** The count to display/enforce against — live in-memory value, falling back to disk. */
+    private fun currentReels(): Int = if (liveReels >= 0) liveReels else data.settings.todayReels
+
+    /** Record one more reel in memory (instant); persistence happens later in a batch. */
+    private fun bumpReel() {
+        if (liveReels < 0) liveReels = data.settings.todayReels
+        liveReels++
+        unflushedReels++
+    }
+
+    /** Write accumulated reels to disk in one shot — at most every ~10s, or forced on feed exit. */
+    private fun maybeFlushReels(now: Long, force: Boolean = false) {
+        if (unflushedReels <= 0) return
+        if (!force && now - lastReelPersistAt < 10_000L) return
+        val n = unflushedReels
+        unflushedReels = 0
+        lastReelPersistAt = now
+        scope.launch {
+            TameApp.repo.update { it.copy(settings = it.settings.copy(todayReels = it.settings.todayReels + n)) }
+        }
     }
 
     private fun recheckApps() {
@@ -161,7 +202,7 @@ class TameAccessibilityService : AccessibilityService() {
                     clearFeed(); enforce(rule.mode, feedName, liftLabel(rule), key, RuleKind.FEED); return
                 }
                 data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.limit > 0 }?.let { limitRule ->
-                    if (data.settings.todayReels >= limitRule.limit) { enforce(limitRule.mode, feedName, "tomorrow", key, RuleKind.FEED); return }
+                    if (currentReels() >= limitRule.limit) { enforce(limitRule.mode, feedName, "tomorrow", key, RuleKind.FEED); return }
                 }
             }
         } else {
@@ -170,7 +211,7 @@ class TameAccessibilityService : AccessibilityService() {
 
         val limitRule = data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.limit > 0 }
         val limit = limitRule?.limit ?: data.settings.reelLimit
-        val reels = data.settings.todayReels
+        val reels = currentReels()
         val ratio = if (limit > 0) reels.toFloat() / limit else 0f
         OverlayManager.showOrUpdate(this, reels, limit, ratio)
     }
@@ -182,7 +223,7 @@ class TameAccessibilityService : AccessibilityService() {
         if (recent.contains(text)) return // scrolled back to a reel we already counted
         recent.addLast(text)
         if (recent.size > 40) recent.removeFirst()
-        scope.launch { TameApp.repo.update { it.copy(settings = it.settings.copy(todayReels = it.settings.todayReels + 1)) } }
+        bumpReel()
     }
 
     /** Accumulate time-on-feed and flush to storage every few seconds. */
@@ -216,11 +257,9 @@ class TameAccessibilityService : AccessibilityService() {
         if (now - lastScrollAt < 700) return
         lastScrollAt = now
 
-        // count this reel; enforcement (limit / active rule) is handled in handleForeground
-        scope.launch {
-            TameApp.repo.update { it.copy(settings = it.settings.copy(todayReels = it.settings.todayReels + 1)) }
-        }
-        val reels = data.settings.todayReels + 1
+        // count this reel in memory; enforcement (limit / active rule) is handled in handleForeground
+        bumpReel()
+        val reels = currentReels()
         val limitRule = data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.limit > 0 }
         val limit = limitRule?.limit ?: data.settings.reelLimit
         val ratio = if (limit > 0) reels.toFloat() / limit else 0f
@@ -250,7 +289,7 @@ class TameAccessibilityService : AccessibilityService() {
             overlay.showBlock(data.settings.blockStyle, name, lifts)
         } else {
             overlay.showFriction(name, onOpenAnyway = {
-                snoozeUntil[target] = System.currentTimeMillis() + 60_000L
+                snoozeUntil[target] = System.currentTimeMillis() + 5 * 60_000L // 5 minutes
                 blockedPkg = null
             })
         }
@@ -269,6 +308,7 @@ class TameAccessibilityService : AccessibilityService() {
     private fun clearFeed() {
         if (feedKey != null) {
             flushFeedTime()
+            maybeFlushReels(System.currentTimeMillis(), force = true)
             lastReelText.remove(feedKey)
             feedKey = null
             OverlayManager.hide(this)
@@ -303,6 +343,10 @@ class TameAccessibilityService : AccessibilityService() {
                     if (app.feedDesc.any { d.contains(it) }) onFeed = true
                 }
             }
+            // Stop early once we've learned what we need: on the feed, and (for apps that
+            // count by caption text) we've captured this reel's text. Saves walking the
+            // rest of the tree on every content-changed event.
+            if (onFeed && (app.reelTextIds.isEmpty() || text.isNotEmpty())) break
             for (i in 0 until node.childCount) node.getChild(i)?.let { queue.add(it) }
         }
         return FeedScan(onFeed, text.toString().trim().ifBlank { null })

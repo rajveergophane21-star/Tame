@@ -27,9 +27,16 @@ object OverlayManager {
     private var frank: ImageView? = null
     private var bar: View? = null
 
+    // last values rendered — skip the view work when nothing changed
+    private var lastReels = Int.MIN_VALUE
+    private var lastLimit = Int.MIN_VALUE
+    private var lastRatio = -1f
+
     private fun dp(ctx: Context, v: Float): Int = (v * ctx.resources.displayMetrics.density).toInt()
 
     fun showOrUpdate(ctx: Context, reels: Int, limit: Int, ratio: Float) {
+        // already showing the same numbers — nothing to redraw
+        if (root != null && reels == lastReels && limit == lastLimit && ratio == lastRatio) return
         val wm = ctx.getSystemService(WindowManager::class.java)
         val color = when {
             ratio >= 1f -> Color.parseColor("#E1574C")
@@ -83,6 +90,7 @@ object OverlayManager {
             if (!addCounter(ctx, wm, pill)) return
             root = pill
         }
+        lastReels = reels; lastLimit = limit; lastRatio = ratio
         frank?.setImageResource(mood)
         countText?.text = "$reels/$limit"
         bar?.let {
@@ -120,5 +128,6 @@ object OverlayManager {
         val r = root ?: return
         runCatching { ctx.getSystemService(WindowManager::class.java).removeView(r) }
         root = null; countText = null; frank = null; bar = null
+        lastReels = Int.MIN_VALUE; lastLimit = Int.MIN_VALUE; lastRatio = -1f
     }
 }
