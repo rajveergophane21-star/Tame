@@ -2,6 +2,8 @@ package com.tame.app.service
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.tame.app.TameApp
@@ -48,9 +50,29 @@ class TameAccessibilityService : AccessibilityService() {
 
     private fun snoozed(target: String) = System.currentTimeMillis() < (snoozeUntil[target] ?: 0L)
 
+    private val handler = Handler(Looper.getMainLooper())
+    // Safety net: re-evaluate the foreground app even when no events fire, so a rule
+    // that starts mid-session (or a block dismissed by the system) re-applies.
+    private val recheck = object : Runnable {
+        override fun run() {
+            recheckApps()
+            handler.postDelayed(this, 1200)
+        }
+    }
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         scope.launch { TameApp.repo.data.collect { data = it } }
+        handler.postDelayed(recheck, 1200)
+    }
+
+    private fun recheckApps() {
+        val pkg = currentPkg ?: return
+        if (pkg == packageName || blockOverlay?.isShowing == true) return
+        val now = System.currentTimeMillis()
+        data.rules.firstOrNull { it.kind == RuleKind.APP && it.targets.contains(pkg) && it.isActiveAt(now) }?.let { rule ->
+            if (!snoozed(pkg)) enforce(rule.mode, appLabel(pkg), liftLabel(rule), pkg)
+        }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -267,6 +289,7 @@ class TameAccessibilityService : AccessibilityService() {
     override fun onInterrupt() {}
 
     override fun onUnbind(intent: Intent?): Boolean {
+        handler.removeCallbacks(recheck)
         dismissOverlay()
         OverlayManager.hide(this)
         scope.cancel()

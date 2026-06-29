@@ -4,7 +4,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
-import android.text.TextUtils
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -13,13 +12,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.core.view.WindowCompat
-import com.tame.app.service.TameAccessibilityService
 import com.tame.app.ui.AppViewModel
 import com.tame.app.ui.CrashScreen
 import com.tame.app.ui.SystemActions
 import com.tame.app.ui.TameRoot
 import com.tame.app.ui.theme.Accents
 import com.tame.app.ui.theme.TameTheme
+import com.tame.app.util.AccessibilityUtil
 import com.tame.app.util.CrashReporter
 
 class MainActivity : ComponentActivity(), SystemActions {
@@ -73,16 +72,7 @@ class MainActivity : ComponentActivity(), SystemActions {
         )
     }
 
-    override fun isAccessibilityOn(): Boolean {
-        val expected = "$packageName/${TameAccessibilityService::class.java.name}"
-        val enabled = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: return false
-        val splitter = TextUtils.SimpleStringSplitter(':')
-        splitter.setString(enabled)
-        while (splitter.hasNext()) {
-            if (splitter.next().equals(expected, ignoreCase = true)) return true
-        }
-        return false
-    }
+    override fun isAccessibilityOn(): Boolean = AccessibilityUtil.isEnabled(this)
 
     override fun isOverlayOn(): Boolean = Settings.canDrawOverlays(this)
 

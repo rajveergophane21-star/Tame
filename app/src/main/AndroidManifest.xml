@@ -64,6 +64,12 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
+        <!-- Periodic backstop that warns if the accessibility service gets turned off -->
+        <service
+            android:name=".service.TameWatchdogJob"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
         <receiver
             android:name=".alarm.AlarmReceiver"
             android:exported="false" />
