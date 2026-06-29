@@ -48,8 +48,11 @@ object AppCatalog {
         KnownApp(
             "yt", "YouTube", "YT", 0xFFFF0000, 0xFFFFFFFF, feed = "Shorts",
             packages = listOf("com.google.android.youtube", "app.revanced.android.youtube"),
-            feedViewIds = listOf("reel_recycler", "reel_player_page"),
-            reelTextIds = listOf("reel_player_page_content"),
+            // reel_progress_bar is the Shorts player's progress bar — present only while a
+            // Short is playing, never on the home feed's Shorts shelf (verified against the
+            // open-source Shorts-Blocker project). Count Shorts by swipe: the per-Short
+            // caption view ids are unreliable across YouTube versions.
+            feedViewIds = listOf("reel_progress_bar", "reel_player_page"),
         ),
         KnownApp(
             "tt", "TikTok", "TT", 0xFF0B0B0B, 0xFFFFFFFF, feed = "For You",

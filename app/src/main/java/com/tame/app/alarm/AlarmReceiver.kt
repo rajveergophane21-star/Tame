@@ -55,6 +55,14 @@ class AlarmReceiver : BroadcastReceiver() {
 
                 context.getSystemService(NotificationManager::class.java).notify(id.hashCode(), notif)
 
+                // Android 14+ can downgrade full-screen intents for non-alarm apps, so the
+                // ring screen may not pop up on its own. We hold the draw-over-apps
+                // permission, which also permits launching an activity from the background —
+                // use it as a fallback so the reminder still rings when the app is closed.
+                if (android.provider.Settings.canDrawOverlays(context)) {
+                    runCatching { context.startActivity(fullScreen) }
+                }
+
                 // Re-arm the next occurrence (AlarmManager exact alarms are one-shot).
                 val habit = data.habits.firstOrNull { it.id == id }
                 if (habit != null && habit.remindOn) AlarmScheduler.schedule(context, habit)
