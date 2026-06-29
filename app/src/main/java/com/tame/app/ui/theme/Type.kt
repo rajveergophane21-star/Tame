@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
+
 package com.tame.app.ui.theme
 
 import androidx.compose.ui.text.font.Font

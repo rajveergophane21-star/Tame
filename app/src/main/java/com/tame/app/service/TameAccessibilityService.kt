@@ -113,12 +113,13 @@ class TameAccessibilityService : AccessibilityService() {
         if (mode == RuleMode.BLOCK) {
             scope.launch { TameApp.repo.update { it.copy(settings = it.settings.copy(turnbacks = it.settings.turnbacks + 1)) } }
         }
+        val blockStyle = data.settings.blockStyle
         val intent = Intent(this, StopActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
             putExtra(StopActivity.EXTRA_MODE, if (mode == RuleMode.BLOCK) "block" else "friction")
             putExtra(StopActivity.EXTRA_NAME, name)
             putExtra(StopActivity.EXTRA_LIFTS, lifts)
-            putExtra(StopActivity.EXTRA_BLOCK_STYLE, data.settings.blockStyle)
+            putExtra(StopActivity.EXTRA_BLOCK_STYLE, blockStyle)
         }
         runCatching { startActivity(intent) }
     }
