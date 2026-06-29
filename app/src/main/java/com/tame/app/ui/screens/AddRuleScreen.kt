@@ -38,6 +38,7 @@ import com.tame.app.data.model.RuleMode
 import com.tame.app.data.model.SchedMode
 import com.tame.app.ui.AppViewModel
 import com.tame.app.ui.components.AppSquare
+import com.tame.app.ui.components.dashedBorder
 import com.tame.app.ui.components.SvgIcon
 import com.tame.app.ui.components.TameSwitch
 import com.tame.app.ui.components.VCircle
@@ -532,7 +533,7 @@ private fun NoResults(query: String) {
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(TameColors.RowUnselected)
-            .border(1.dp, TameColors.DashedBorder, RoundedCornerShape(16.dp))
+            .dashedBorder(TameColors.DashedBorder, 1.dp, 16.dp)
             .padding(horizontal = 18.dp, vertical = 26.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

@@ -8,6 +8,9 @@ import android.content.Intent
 import androidx.core.app.NotificationCompat
 import com.tame.app.R
 import com.tame.app.TameApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /** Fires at a habit's reminder time: shows a full-screen alarm and re-arms the next one. */
 class AlarmReceiver : BroadcastReceiver() {
@@ -19,40 +22,45 @@ class AlarmReceiver : BroadcastReceiver() {
 
         AlarmScheduler.ensureChannel(context)
 
-        val fullScreen = Intent(context, AlarmRingActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-            putExtra(AlarmScheduler.EXTRA_HABIT_ID, id)
-            putExtra(AlarmScheduler.EXTRA_HABIT_NAME, name)
-            putExtra(AlarmScheduler.EXTRA_HABIT_TIME, time)
-        }
-        val fsPi = PendingIntent.getActivity(
-            context, id.hashCode(), fullScreen,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-
-        val notif = NotificationCompat.Builder(context, AlarmScheduler.CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle(name)
-            .setContentText("Time for your habit")
-            .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setOngoing(true)
-            .setAutoCancel(true)
-            .setFullScreenIntent(fsPi, true)
-            .setContentIntent(fsPi)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .build()
-
-        context.getSystemService(NotificationManager::class.java)
-            .notify(id.hashCode(), notif)
-
-        // Re-arm the next occurrence (AlarmManager exact alarms are one-shot).
+        // Do the DataStore read, notification post and reschedule off the main thread.
         val pending = goAsync()
-        try {
-            val habit = TameApp.repo.snapshot().habits.firstOrNull { it.id == id }
-            if (habit != null && habit.remindOn) AlarmScheduler.schedule(context, habit)
-        } finally {
-            pending.finish()
+        CoroutineScope(Dispatchers.Default).launch {
+            try {
+                val data = TameApp.repo.snapshot()
+                val accent = data.settings.accentKey
+
+                val fullScreen = Intent(context, AlarmRingActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    putExtra(AlarmScheduler.EXTRA_HABIT_ID, id)
+                    putExtra(AlarmScheduler.EXTRA_HABIT_NAME, name)
+                    putExtra(AlarmScheduler.EXTRA_HABIT_TIME, time)
+                    putExtra(AlarmScheduler.EXTRA_ACCENT, accent)
+                }
+                val fsPi = PendingIntent.getActivity(
+                    context, id.hashCode(), fullScreen,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                )
+
+                val notif = NotificationCompat.Builder(context, AlarmScheduler.CHANNEL_ID)
+                    .setSmallIcon(R.drawable.ic_launcher_foreground)
+                    .setContentTitle(name)
+                    .setContentText("Time for your habit")
+                    .setPriority(NotificationCompat.PRIORITY_MAX)
+                    .setCategory(NotificationCompat.CATEGORY_ALARM)
+                    .setOngoing(true)
+                    .setFullScreenIntent(fsPi, true)
+                    .setContentIntent(fsPi)
+                    .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                    .build()
+
+                context.getSystemService(NotificationManager::class.java).notify(id.hashCode(), notif)
+
+                // Re-arm the next occurrence (AlarmManager exact alarms are one-shot).
+                val habit = data.habits.firstOrNull { it.id == id }
+                if (habit != null && habit.remindOn) AlarmScheduler.schedule(context, habit)
+            } finally {
+                pending.finish()
+            }
         }
     }
 }

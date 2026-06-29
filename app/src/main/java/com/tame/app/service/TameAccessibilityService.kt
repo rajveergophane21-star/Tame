@@ -30,6 +30,7 @@ class TameAccessibilityService : AccessibilityService() {
     private var feedKey: String? = null
     private var lastScrollAt = 0L
     private var lastTriggerAt = 0L
+    private var lastContentEvalAt = 0L
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -42,7 +43,14 @@ class TameAccessibilityService : AccessibilityService() {
         if (pkg == packageName) return
         when (e.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> { currentPkg = pkg; handleForeground(pkg) }
-            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> if (pkg == currentPkg) handleForeground(pkg)
+            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
+                // content-changed fires continuously while scrolling — throttle the node traversal
+                val now = System.currentTimeMillis()
+                if (pkg == currentPkg && now - lastContentEvalAt >= 500) {
+                    lastContentEvalAt = now
+                    handleForeground(pkg)
+                }
+            }
             AccessibilityEvent.TYPE_VIEW_SCROLLED -> handleScroll(pkg)
         }
     }
@@ -89,6 +97,12 @@ class TameAccessibilityService : AccessibilityService() {
         val key = AppCatalog.keyForPackage(pkg) ?: return
         if (key != feedKey) return
         val now = System.currentTimeMillis()
+        // an active feed block/friction rule takes precedence over counting
+        data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.isActiveAt(now) }?.let { rule ->
+            clearFeed()
+            enforce(rule.mode, AppCatalog[key]?.feed ?: "this feed", liftLabel(rule))
+            return
+        }
         if (now - lastScrollAt < 700) return
         lastScrollAt = now
 
@@ -114,12 +128,14 @@ class TameAccessibilityService : AccessibilityService() {
             scope.launch { TameApp.repo.update { it.copy(settings = it.settings.copy(turnbacks = it.settings.turnbacks + 1)) } }
         }
         val blockStyle = data.settings.blockStyle
+        val accentKey = data.settings.accentKey
         val intent = Intent(this, StopActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
             putExtra(StopActivity.EXTRA_MODE, if (mode == RuleMode.BLOCK) "block" else "friction")
             putExtra(StopActivity.EXTRA_NAME, name)
             putExtra(StopActivity.EXTRA_LIFTS, lifts)
             putExtra(StopActivity.EXTRA_BLOCK_STYLE, blockStyle)
+            putExtra(StopActivity.EXTRA_ACCENT, accentKey)
         }
         runCatching { startActivity(intent) }
     }

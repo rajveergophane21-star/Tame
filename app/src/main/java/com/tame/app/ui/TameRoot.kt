@@ -4,7 +4,6 @@ import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
@@ -73,9 +72,7 @@ fun TameRoot(vm: AppViewModel) {
                 onRules = vm::goRules,
                 onHabits = vm::goHabits,
                 onYou = vm::goSettings,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding(),
+                modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
 

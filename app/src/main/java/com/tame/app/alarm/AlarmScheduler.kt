@@ -17,6 +17,7 @@ object AlarmScheduler {
     const val EXTRA_HABIT_ID = "habit_id"
     const val EXTRA_HABIT_NAME = "habit_name"
     const val EXTRA_HABIT_TIME = "habit_time"
+    const val EXTRA_ACCENT = "accent"
 
     fun ensureChannel(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java)

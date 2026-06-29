@@ -33,12 +33,15 @@ data class Rule(
             val cal = Calendar.getInstance().apply { timeInMillis = nowMillis }
             // Calendar.MONDAY=2 ... SUNDAY=1 -> map to 0..6 (Mon..Sun)
             val dow = (cal.get(Calendar.DAY_OF_WEEK) + 5) % 7
+            val prevDow = (dow + 6) % 7
             val hour = cal.get(Calendar.HOUR_OF_DAY)
-            val dayOn = days.getOrElse(dow) { false }
-            val inWindow =
-                if (fromHour <= toHour) hour in fromHour until toHour
-                else hour >= fromHour || hour < toHour   // overnight window
-            dayOn && inWindow
+            fun on(d: Int) = days.getOrElse(d) { false }
+            if (fromHour <= toHour) {
+                on(dow) && hour in fromHour until toHour
+            } else {
+                // overnight window: evening tail belongs to today, morning tail to the previous day
+                (hour >= fromHour && on(dow)) || (hour < toHour && on(prevDow))
+            }
         }
     }
 }

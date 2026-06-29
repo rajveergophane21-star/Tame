@@ -41,9 +41,10 @@ fun Frank(
     size: Dp,
     modifier: Modifier = Modifier,
     idle: Boolean = true,
+    shake: Boolean = false,
 ) {
     val anim = when {
-        mood == "panic" -> Modifier.frankShake()
+        shake || mood == "panic" -> Modifier.frankShake()
         idle -> Modifier.frankFloat()
         else -> Modifier
     }

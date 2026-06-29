@@ -22,7 +22,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -35,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.tame.app.ui.AppViewModel
 import com.tame.app.ui.components.Frank
+import com.tame.app.ui.components.glow
 import com.tame.app.ui.components.tap
 import com.tame.app.ui.theme.Bricolage
 import com.tame.app.ui.theme.Hanken
@@ -47,8 +47,8 @@ fun AlarmTakeover(vm: AppViewModel) {
     val a = accent
 
     // ringGlow pulse — opacity oscillates around the design's .12 base.
-    val glow = rememberInfiniteTransition(label = "ringGlow")
-    val glowAlpha by glow.animateFloat(
+    val ringGlow = rememberInfiniteTransition(label = "ringGlow")
+    val glowAlpha by ringGlow.animateFloat(
         initialValue = 0.10f,
         targetValue = 0.18f,
         animationSpec = infiniteRepeatable(tween(1400), RepeatMode.Reverse),
@@ -66,10 +66,8 @@ fun AlarmTakeover(vm: AppViewModel) {
         Box(
             modifier = Modifier
                 .size(380.dp)
-                .blur(70.dp)
                 .alpha(glowAlpha)
-                .clip(RoundedCornerShape(190.dp))
-                .background(a.pop),
+                .glow(a.pop),
         )
 
         Column(
@@ -80,7 +78,7 @@ fun AlarmTakeover(vm: AppViewModel) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
-                Frank(mood = "neutral", size = 108.dp, idle = false)
+                Frank(mood = "neutral", size = 108.dp, idle = false, shake = true)
 
                 Text(
                     text = habit.remind,

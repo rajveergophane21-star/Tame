@@ -13,7 +13,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
@@ -25,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import com.tame.app.ui.AppViewModel
 import com.tame.app.ui.components.Frank
 import com.tame.app.ui.components.breathe
+import com.tame.app.ui.components.glow
 import com.tame.app.ui.components.tap
 import com.tame.app.ui.mmss
 import com.tame.app.ui.theme.Bricolage
@@ -44,14 +44,12 @@ fun FocusRunTakeover(vm: AppViewModel) {
             .padding(horizontal = 36.dp),
         contentAlignment = Alignment.Center,
     ) {
-        // Accent radial blur behind, breathing.
+        // Accent radial glow behind, breathing.
         Box(
             modifier = Modifier
                 .size(440.dp)
                 .breathe(6000)
-                .clip(RoundedCornerShape(220.dp))
-                .blur(80.dp)
-                .background(a.primary.copy(alpha = 0.2f)),
+                .glow(a.primary.copy(alpha = 0.2f)),
         )
 
         // Centered content stack + End focus button.

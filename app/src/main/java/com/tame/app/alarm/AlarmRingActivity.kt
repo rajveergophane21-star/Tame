@@ -1,6 +1,7 @@
 package com.tame.app.alarm
 
 import android.app.NotificationManager
+import android.content.Intent
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.media.RingtoneManager
@@ -22,13 +23,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tame.app.TameApp
@@ -37,8 +40,12 @@ import com.tame.app.ui.components.tap
 import com.tame.app.ui.theme.Accents
 import com.tame.app.ui.theme.Bricolage
 import com.tame.app.ui.theme.Hanken
+import com.tame.app.ui.theme.LocalAccent
 import com.tame.app.ui.theme.TameColors
 import com.tame.app.ui.theme.TameTheme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /** Full-screen, ring-until-stopped habit alarm (shows over the lock screen). */
 class AlarmRingActivity : ComponentActivity() {
@@ -46,6 +53,8 @@ class AlarmRingActivity : ComponentActivity() {
     private var player: MediaPlayer? = null
     private var vibrator: Vibrator? = null
     private var habitId: String? = null
+    private var nameState by mutableStateOf("Habit")
+    private var timeState by mutableStateOf("")
 
     @Suppress("DEPRECATION")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,23 +68,35 @@ class AlarmRingActivity : ComponentActivity() {
                 android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
         )
 
-        habitId = intent.getStringExtra(AlarmScheduler.EXTRA_HABIT_ID)
-        val name = intent.getStringExtra(AlarmScheduler.EXTRA_HABIT_NAME) ?: "Habit"
-        val time = intent.getStringExtra(AlarmScheduler.EXTRA_HABIT_TIME) ?: ""
-
+        readExtras(intent)
         startRinging()
 
-        val palette = Accents.byKey(TameApp.repo.snapshot().settings.accentKey)
+        val palette = Accents.byKey(intent.getStringExtra(AlarmScheduler.EXTRA_ACCENT))
         setContent {
             TameTheme(accent = palette) {
                 AlarmContent(
-                    name = name,
-                    time = time,
+                    name = nameState,
+                    time = timeState,
                     onDone = { markDoneAndFinish() },
                     onDismiss = { stopAndFinish() },
                 )
             }
         }
+    }
+
+    // singleInstance: a second alarm reuses this instance — refresh its content.
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        readExtras(intent)
+        stopRinging()
+        startRinging()
+    }
+
+    private fun readExtras(intent: Intent) {
+        habitId = intent.getStringExtra(AlarmScheduler.EXTRA_HABIT_ID)
+        nameState = intent.getStringExtra(AlarmScheduler.EXTRA_HABIT_NAME) ?: "Habit"
+        timeState = intent.getStringExtra(AlarmScheduler.EXTRA_HABIT_TIME) ?: ""
     }
 
     private fun startRinging() {
@@ -100,32 +121,38 @@ class AlarmRingActivity : ComponentActivity() {
         } else {
             @Suppress("DEPRECATION") (getSystemService(VIBRATOR_SERVICE) as Vibrator)
         }
-        val pattern = longArrayOf(0, 600, 600)
-        vibrator?.vibrate(VibrationEffect.createWaveform(pattern, 0))
+        vibrator?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 600, 600), 0))
     }
 
     private fun stopRinging() {
         runCatching { player?.stop(); player?.release() }
         player = null
-        vibrator?.cancel()
-        habitId?.let {
-            getSystemService(NotificationManager::class.java).cancel(it.hashCode())
-        }
+        runCatching { vibrator?.cancel() }
+        habitId?.let { getSystemService(NotificationManager::class.java).cancel(it.hashCode()) }
     }
 
     private fun markDoneAndFinish() {
         val id = habitId
         if (id != null) {
-            TameApp.repo.updateBlocking { d ->
-                d.copy(habits = d.habits.map { h ->
-                    if (h.id != id) h else h.copy(grid = h.grid.toMutableList().also { it[it.size - 1] = 1 })
-                })
+            CoroutineScope(Dispatchers.IO).launch {
+                TameApp.repo.update { d ->
+                    d.copy(habits = d.habits.map { h ->
+                        if (h.id != id || h.grid.isEmpty()) h
+                        else h.copy(grid = h.grid.toMutableList().also { it[it.size - 1] = 1 })
+                    })
+                }
             }
         }
         stopAndFinish()
     }
 
     private fun stopAndFinish() { stopRinging(); finish() }
+
+    override fun onStop() {
+        // don't keep ringing/vibrating once we leave the foreground
+        stopRinging()
+        super.onStop()
+    }
 
     override fun onDestroy() { stopRinging(); super.onDestroy() }
 }
@@ -137,7 +164,7 @@ private fun AlarmContent(name: String, time: String, onDone: () -> Unit, onDismi
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
-            Frank(mood = "neutral", size = 108.dp, idle = false)
+            Frank(mood = "neutral", size = 108.dp, idle = false, shake = true)
             Text(time, style = TextStyle(fontFamily = Bricolage, fontWeight = FontWeight.ExtraBold, fontSize = 46.sp, color = Color.White))
             Text(name, style = TextStyle(fontFamily = Hanken, fontSize = 17.sp, color = TameColors.OnDarkSub))
         }
@@ -151,7 +178,7 @@ private fun AlarmContent(name: String, time: String, onDone: () -> Unit, onDismi
                     .fillMaxWidth()
                     .height(60.dp)
                     .clip(RoundedCornerShape(34.dp))
-                    .background(com.tame.app.ui.theme.LocalAccent.current.pop)
+                    .background(LocalAccent.current.pop)
                     .tap { onDone() },
                 contentAlignment = Alignment.Center,
             ) {

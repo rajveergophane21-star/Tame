@@ -16,7 +16,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
@@ -28,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import com.tame.app.ui.AppViewModel
 import com.tame.app.ui.components.Frank
 import com.tame.app.ui.components.breathe
+import com.tame.app.ui.components.glow
 import com.tame.app.ui.components.tap
 import com.tame.app.ui.theme.Bricolage
 import com.tame.app.ui.theme.Hanken
@@ -53,9 +53,7 @@ fun BlockTakeover(vm: AppViewModel) {
         Box(
             modifier = Modifier
                 .size(420.dp)
-                .blur(70.dp)
-                .clip(CircleShape)
-                .background(a.primary.copy(alpha = 0.12f)),
+                .glow(a.primary.copy(alpha = 0.12f)),
         )
 
         Column(
@@ -108,6 +106,7 @@ fun BlockTakeover(vm: AppViewModel) {
                         Frank(
                             mood = "breathe",
                             size = 124.dp,
+                            idle = false,
                             modifier = Modifier.breathe(5000),
                         )
                         Text(

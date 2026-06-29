@@ -58,11 +58,8 @@ fun OnboardingScreen(vm: AppViewModel) {
     val onbBg = Color(0xFFF5F3EC)
     val step = onbSteps.getOrElse(vm.onbStep) { onbSteps[0] }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(onbBg)
-    ) {
+    Box(modifier = Modifier.fillMaxSize().background(onbBg)) {
+      Column(modifier = Modifier.fillMaxSize()) {
         // ── content area ──
         Column(
             modifier = Modifier
@@ -126,21 +123,6 @@ fun OnboardingScreen(vm: AppViewModel) {
                     }
                 }
 
-                // skip button — top:54 (relative to content top of 70 -> offset -16), right:24
-                Text(
-                    text = "skip",
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .offset(x = 10.dp, y = (-16).dp)
-                        .tap { vm.finishOnboarding() },
-                    style = TextStyle(
-                        fontFamily = Hanken,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.sp,
-                        letterSpacing = 0.02.em,
-                        color = TameColors.TextFaint2,
-                    ),
-                )
             }
         }
 
@@ -208,6 +190,22 @@ fun OnboardingScreen(vm: AppViewModel) {
                 TameIcons.ArrowRight(size = 19.dp, tint = Color.White)
             }
         }
+      }
+      // skip — pinned to the top of the screen so it stays put across steps
+      Text(
+          text = "skip",
+          modifier = Modifier
+              .align(Alignment.TopEnd)
+              .padding(top = 54.dp, end = 24.dp)
+              .tap { vm.finishOnboarding() },
+          style = TextStyle(
+              fontFamily = Hanken,
+              fontWeight = FontWeight.SemiBold,
+              fontSize = 13.sp,
+              letterSpacing = 0.02.em,
+              color = TameColors.TextFaint2,
+          ),
+      )
     }
 }
 

@@ -20,6 +20,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 
 /**
  * Single source of UI truth — a Compose-state port of the design prototype's
@@ -174,12 +176,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun toggleHabit(id: String) = persist { d ->
         d.copy(habits = d.habits.map { h ->
-            if (h.id != id) h else h.copy(grid = h.grid.toMutableList().also { it[it.size - 1] = if (it.last() == 1) 0 else 1 })
+            if (h.id != id || h.grid.isEmpty()) h
+            else h.copy(grid = h.grid.toMutableList().also { it[it.size - 1] = if (it.last() == 1) 0 else 1 })
         })
     }
     fun toggleHabitDay(id: String, i: Int) = persist { d ->
         d.copy(habits = d.habits.map { h ->
-            if (h.id != id) h else h.copy(grid = h.grid.toMutableList().also { it[i] = if (it[i] == 1) 0 else 1 })
+            if (h.id != id || i !in h.grid.indices) h
+            else h.copy(grid = h.grid.toMutableList().also { it[i] = if (it[i] == 1) 0 else 1 })
         })
     }
 
@@ -290,9 +294,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun feedRuleFor(app: String): Rule? = rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(app) }
 
     fun scrollReel() {
-        val n = settings.todayReels + 1
         reelIndex += 1
-        persist { d -> d.copy(settings = d.settings.copy(todayReels = n)) }
+        // increment relative to the persisted value (race-free under rapid taps)
+        persist { d -> d.copy(settings = d.settings.copy(todayReels = d.settings.todayReels + 1)) }
+        val n = settings.todayReels + 1
         if (n >= settings.reelLimit && !reelsTriggered) {
             reelsTriggered = true
             val rule = feedRuleFor(reelsApp)
@@ -345,7 +350,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (id != null) {
             persist { d ->
                 d.copy(habits = d.habits.map { h ->
-                    if (h.id != id) h else h.copy(grid = h.grid.toMutableList().also { it[it.size - 1] = 1 })
+                    if (h.id != id || h.grid.isEmpty()) h else h.copy(grid = h.grid.toMutableList().also { it[it.size - 1] = 1 })
                 })
             }
         }
@@ -422,11 +427,33 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun ensureDay() = viewModelScope.launch {
         repo.update { d ->
             val today = TameRepository.today()
-            if (d.settings.lastReelDay == today) return@update d
-            val under = d.settings.lastReelDay.isNotEmpty() && d.settings.todayReels <= d.settings.reelLimit
+            val last = d.settings.lastReelDay
+            if (last == today) return@update d
+            val elapsed = daysBetween(last, today)
+            val under = last.isNotEmpty() && d.settings.todayReels <= d.settings.reelLimit
             val days = (if (under) d.settings.daysUnderLimit + 1 else d.settings.daysUnderLimit).coerceIn(0, 7)
-            d.copy(settings = d.settings.copy(todayReels = 0, reelMinutes = 0, lastReelDay = today, daysUnderLimit = days))
+            val habits = if (elapsed > 0) d.habits.map { rollGrid(it, elapsed) } else d.habits
+            d.copy(
+                settings = d.settings.copy(todayReels = 0, reelMinutes = 0, lastReelDay = today, daysUnderLimit = days),
+                habits = habits,
+            )
         }
+    }
+
+    private fun daysBetween(last: String, today: String): Int {
+        if (last.isEmpty()) return 0
+        return try {
+            ChronoUnit.DAYS.between(LocalDate.parse(last), LocalDate.parse(today)).toInt().coerceIn(0, 28)
+        } catch (e: Exception) { 1 }
+    }
+
+    /** Advance a 28-cell habit history by [shift] days so the last cell is always today. */
+    private fun rollGrid(h: Habit, shift: Int): Habit {
+        if (h.grid.isEmpty()) return h.copy(grid = List(28) { 0 })
+        val n = h.grid.size
+        val s = shift.coerceIn(0, n)
+        if (s == 0) return h
+        return h.copy(grid = (h.grid.drop(s) + List(s) { 0 }).takeLast(n))
     }
 
     // ── toast ──

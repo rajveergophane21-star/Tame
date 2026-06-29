@@ -47,7 +47,10 @@ import com.tame.app.ui.theme.Hanken
 import com.tame.app.ui.theme.LocalAccent
 import com.tame.app.ui.theme.TameColors
 import com.tame.app.ui.theme.TameTheme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * The real over-other-apps stop screen, launched by [TameAccessibilityService].
@@ -64,7 +67,7 @@ class StopActivity : ComponentActivity() {
         val name = intent.getStringExtra(EXTRA_NAME) ?: "this"
         val lifts = intent.getStringExtra(EXTRA_LIFTS) ?: "later today"
         val blockStyle = intent.getStringExtra(EXTRA_BLOCK_STYLE) ?: "frank"
-        val palette = Accents.byKey(TameApp.repo.snapshot().settings.accentKey)
+        val palette = Accents.byKey(intent.getStringExtra(EXTRA_ACCENT))
 
         // Back press = turn back to home (never silently return to the blocked app).
         onBackPressedDispatcher.addCallback(this) { goHome() }
@@ -89,7 +92,10 @@ class StopActivity : ComponentActivity() {
     }
 
     private fun countTurnback() {
-        TameApp.repo.updateBlocking { it.copy(settings = it.settings.copy(turnbacks = it.settings.turnbacks + 1)) }
+        // fire-and-forget off the main thread
+        CoroutineScope(Dispatchers.IO).launch {
+            TameApp.repo.update { it.copy(settings = it.settings.copy(turnbacks = it.settings.turnbacks + 1)) }
+        }
     }
 
     companion object {
@@ -97,6 +103,7 @@ class StopActivity : ComponentActivity() {
         const val EXTRA_NAME = "name"
         const val EXTRA_LIFTS = "lifts"
         const val EXTRA_BLOCK_STYLE = "block_style"
+        const val EXTRA_ACCENT = "accent"
     }
 }
 

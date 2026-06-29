@@ -10,7 +10,7 @@ fun daysLabel(days: List<Boolean>): String {
     if (on.isEmpty() || on.size == 7) return "Every day"
     if (on.size == 5 && on.all { it < 5 }) return "Weekdays"
     if (on.size == 2 && on[0] == 5 && on[1] == 6) return "Weekends"
-    return on.joinToString(" ") { dayShort[it] }
+    return on.joinToString(" · ") { dayShort[it] }
 }
 
 /** Human schedule string, matching the design (e.g. "All day", "Weekdays · 9:00 – 17:00"). */

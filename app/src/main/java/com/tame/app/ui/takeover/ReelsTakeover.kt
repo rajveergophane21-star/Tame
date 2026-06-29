@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
@@ -91,27 +92,23 @@ fun ReelsTakeover(vm: AppViewModel) {
                 .tap { vm.scrollReel() },
         ) {
             // big translucent play circle centered at ~42% of height
-            Column(modifier = Modifier.fillMaxSize()) {
-                Spacer(modifier = Modifier.weight(0.42f))
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = BiasAlignment(0f, -0.16f), // vertical centre at 42% of height
+            ) {
                 Box(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .size(74.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(Color(0xFFFFFFFF).copy(alpha = 0.16f)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(74.dp)
-                            .clip(RoundedCornerShape(50))
-                            .background(Color(0xFFFFFFFF).copy(alpha = 0.16f)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        SvgIcon(
-                            shapes = listOf(VPath(d = "M8 5v14l11-7z", fill = true)),
-                            size = 30.dp,
-                            tint = Color(0xFFFFFFFF),
-                        )
-                    }
+                    SvgIcon(
+                        shapes = listOf(VPath(d = "M8 5v14l11-7z", fill = true)),
+                        size = 30.dp,
+                        tint = Color(0xFFFFFFFF),
+                    )
                 }
-                Spacer(modifier = Modifier.weight(0.58f))
             }
 
             // bottom content row

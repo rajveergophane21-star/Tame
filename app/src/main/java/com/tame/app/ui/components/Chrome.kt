@@ -8,11 +8,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -79,9 +82,9 @@ fun BottomNav(current: Screen, onHome: () -> Unit, onRules: () -> Unit, onHabits
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(86.dp)
             .background(TameColors.Surface.copy(alpha = 0.94f))
-            .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 22.dp),
+            .windowInsetsPadding(WindowInsets.navigationBars)
+            .padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 16.dp),
         verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.SpaceAround,
     ) {

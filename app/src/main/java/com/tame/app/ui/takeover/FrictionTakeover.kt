@@ -17,7 +17,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -33,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import com.tame.app.ui.AppViewModel
 import com.tame.app.ui.components.Frank
 import com.tame.app.ui.components.breathe
+import com.tame.app.ui.components.glow
 import com.tame.app.ui.components.tap
 import com.tame.app.ui.theme.Bricolage
 import com.tame.app.ui.theme.TameColors
@@ -49,13 +49,11 @@ fun FrictionTakeover(vm: AppViewModel) {
             .background(TameColors.FrictionBg),
         contentAlignment = Alignment.Center,
     ) {
-        // ambient glow: 380x380 #5B7BE0 opacity .16 blur 70px
+        // ambient glow: 380x380 #5B7BE0 opacity .16
         Box(
             modifier = Modifier
                 .size(380.dp)
-                .blur(70.dp)
-                .clip(CircleShape)
-                .background(Color(0xFF5B7BE0).copy(alpha = 0.16f)),
+                .glow(Color(0xFF5B7BE0).copy(alpha = 0.16f)),
         )
 
         if (fr.choosing) {
