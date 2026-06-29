@@ -11,3 +11,6 @@
 local.properties
 /app/build
 /app/release
+/dist
+*.apk
+*.aab
