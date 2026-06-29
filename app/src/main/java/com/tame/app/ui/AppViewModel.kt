@@ -414,6 +414,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun focus60() = setFocus(60, "1 hour")
     fun focusOpen() = setFocus(0, "until you stop")
 
+    // ── reel counter widget ──
+    fun toggleCounter() =
+        persist { d -> d.copy(settings = d.settings.copy(counterEnabled = !d.settings.counterEnabled)) }
+
     // ── daily reset (shared with the service) ──
     fun ensureDay() = viewModelScope.launch { repo.rolloverIfNeeded() }
 

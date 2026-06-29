@@ -31,6 +31,7 @@ import com.tame.app.ui.AppViewModel
 import com.tame.app.ui.components.FrankFill
 import com.tame.app.ui.components.SvgIcon
 import com.tame.app.ui.components.TameIcons
+import com.tame.app.ui.components.TameSwitch
 import com.tame.app.ui.components.VCircle
 import com.tame.app.ui.components.VPath
 import com.tame.app.ui.components.VRect
@@ -203,6 +204,58 @@ fun SettingsScreen(vm: AppViewModel) {
                 )
             }
             TameIcons.ChevronRight(20.dp, TameColors.IconFaint, sw = 2.4f)
+        }
+
+        // ── reel counter toggle ──
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(1.dp, RoundedCornerShape(20.dp), clip = false)
+                .clip(RoundedCornerShape(20.dp))
+                .background(TameColors.Card)
+                .tap { vm.toggleCounter() }
+                .padding(horizontal = 18.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(TameColors.ChipBg),
+                contentAlignment = Alignment.Center,
+            ) {
+                SvgIcon(
+                    listOf(
+                        VCircle(12f, 12f, 8f, sw = 2f),
+                        VPath("M12 8v4l3 2", sw = 2f),
+                    ),
+                    20.dp,
+                    a.primary,
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Reel counter",
+                    style = TextStyle(
+                        fontFamily = Hanken,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = TameColors.Ink,
+                    ),
+                )
+                Spacer(Modifier.height(1.dp))
+                Text(
+                    "Floating badge while you scroll reels",
+                    style = TextStyle(
+                        fontFamily = Hanken,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 12.5.sp,
+                        color = TameColors.TextFaint,
+                    ),
+                )
+            }
+            TameSwitch(on = vm.settings.counterEnabled)
         }
 
         // ── permission status card ──

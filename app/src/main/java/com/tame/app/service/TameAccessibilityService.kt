@@ -34,6 +34,8 @@ class TameAccessibilityService : AccessibilityService() {
     @Volatile private var data: TameData = TameData()
     private var currentPkg: String? = null
     private var feedKey: String? = null
+    // true only while the short-form feed itself is on screen (not the rest of the app)
+    @Volatile private var onFeedNow = false
     private var lastScrollAt = 0L
     private var lastTriggerAt = 0L
     private var lastContentEvalAt = 0L
@@ -191,6 +193,7 @@ class TameAccessibilityService : AccessibilityService() {
         val root = rootInActiveWindow
         val scan = if (root != null) scanFeed(root, app) else FeedScan(app.feedIsWholeApp, null)
         val feedName = app.feed ?: app.name
+        onFeedNow = scan.onFeed
 
         if (scan.onFeed) {
             tickFeedTime(now)
@@ -209,11 +212,17 @@ class TameAccessibilityService : AccessibilityService() {
             feedTickAt = now // not on the feed right now — don't accumulate time
         }
 
-        val limitRule = data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.limit > 0 }
-        val limit = limitRule?.limit ?: data.settings.reelLimit
-        val reels = currentReels()
-        val ratio = if (limit > 0) reels.toFloat() / limit else 0f
-        OverlayManager.showOrUpdate(this, reels, limit, ratio)
+        // The floating counter belongs to the short/reel section only — show it while the
+        // feed is on screen (and the user hasn't turned it off), hide it everywhere else.
+        if (scan.onFeed && data.settings.counterEnabled) {
+            val limitRule = data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.limit > 0 }
+            val limit = limitRule?.limit ?: data.settings.reelLimit
+            val reels = currentReels()
+            val ratio = if (limit > 0) reels.toFloat() / limit else 0f
+            OverlayManager.showOrUpdate(this, reels, limit, ratio)
+        } else {
+            OverlayManager.hide(this)
+        }
     }
 
     private fun maybeCountReel(key: String, text: String) {
@@ -253,12 +262,15 @@ class TameAccessibilityService : AccessibilityService() {
         val app = AppCatalog[key] ?: return
         // apps with caption text (IG/YT) are counted by content change; only scroll-count the rest
         if (app.reelTextIds.isNotEmpty()) return
+        // only count/draw while the short/reel section is actually on screen
+        if (!onFeedNow) return
         val now = System.currentTimeMillis()
         if (now - lastScrollAt < 700) return
         lastScrollAt = now
 
         // count this reel in memory; enforcement (limit / active rule) is handled in handleForeground
         bumpReel()
+        if (!data.settings.counterEnabled) return
         val reels = currentReels()
         val limitRule = data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.limit > 0 }
         val limit = limitRule?.limit ?: data.settings.reelLimit
@@ -313,6 +325,7 @@ class TameAccessibilityService : AccessibilityService() {
             feedKey = null
             OverlayManager.hide(this)
         }
+        onFeedNow = false
         feedTickAt = 0L
     }
 

@@ -74,6 +74,7 @@ data class Settings(
     val counterStyle: String = "bubble",  // bubble | ring | minimal
     val blockStyle: String = "frank",     // frank | fullstop | calm
     val reelLimit: Int = 40,              // global default daily reel limit
+    val counterEnabled: Boolean = true,   // show the floating reel counter while scrolling
     val todayReels: Int = 0,              // reels watched today (reset daily)
     val reelSeconds: Int = 0,             // seconds spent on feeds today (reset daily)
     val lastReelDay: String = "",         // yyyy-MM-dd marker for daily reset
