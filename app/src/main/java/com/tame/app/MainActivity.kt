@@ -88,4 +88,22 @@ class MainActivity : ComponentActivity(), SystemActions {
             }
         }
     }
+
+    override fun isBatteryUnrestricted(): Boolean {
+        val pm = getSystemService(android.os.PowerManager::class.java) ?: return true
+        return pm.isIgnoringBatteryOptimizations(packageName)
+    }
+
+    override fun openBatterySettings() {
+        // Use the unrestricted-list settings screen (no special permission needed, so it
+        // won't complicate the Play review). Falls back to this app's details page.
+        val opened = runCatching {
+            startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+        }.isSuccess
+        if (!opened) runCatching {
+            startActivity(
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+            )
+        }
+    }
 }

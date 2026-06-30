@@ -303,6 +303,82 @@ fun SettingsScreen(vm: AppViewModel) {
             )
         }
 
+        // ── keep-alive / battery card ──
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(1.dp, RoundedCornerShape(20.dp), clip = false)
+                .clip(RoundedCornerShape(20.dp))
+                .background(TameColors.Card)
+                .then(if (vm.permBattery) Modifier else Modifier.tap { vm.requestBattery() })
+                .padding(horizontal = 18.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(TameColors.ChipBg),
+                contentAlignment = Alignment.Center,
+            ) {
+                SvgIcon(
+                    listOf(
+                        VRect(4f, 8f, 14f, 8f, rx = 2f, sw = 2f),
+                        VRect(19f, 10f, 2f, 4f, rx = 1f, fill = true),
+                        VPath("M9 10l2 4h2", sw = 2f),
+                    ),
+                    20.dp,
+                    a.primary,
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Keep Tame running",
+                    style = TextStyle(
+                        fontFamily = Hanken,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = TameColors.Ink,
+                    ),
+                )
+                Spacer(Modifier.height(1.dp))
+                Text(
+                    if (vm.permBattery) "Battery limits are off — blocking stays reliable."
+                    else "Allow unrestricted battery so your phone can't switch blocking off.",
+                    style = TextStyle(
+                        fontFamily = Hanken,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 12.5.sp,
+                        color = TameColors.TextFaint,
+                    ),
+                )
+            }
+            if (vm.permBattery) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                ) {
+                    TameIcons.Check(15.dp, a.primary, sw = 3f)
+                    Text(
+                        "On",
+                        style = TextStyle(
+                            fontFamily = Hanken, fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp, color = a.primary,
+                        ),
+                    )
+                }
+            } else {
+                Text(
+                    "Fix",
+                    style = TextStyle(
+                        fontFamily = Hanken, fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp, color = TameColors.CommitGold,
+                    ),
+                )
+            }
+        }
+
         // ── privacy dark card ──
         Row(
             modifier = Modifier

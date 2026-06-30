@@ -21,6 +21,7 @@ import com.tame.app.ui.screens.OnboardingScreen
 import com.tame.app.ui.screens.RuleDetailScreen
 import com.tame.app.ui.screens.RulesScreen
 import com.tame.app.ui.screens.SettingsScreen
+import com.tame.app.ui.sheets.AccessibilityConsentSheet
 import com.tame.app.ui.sheets.FocusSheet
 import com.tame.app.ui.sheets.HabitEditorSheet
 import com.tame.app.ui.takeover.AlarmTakeover
@@ -76,6 +77,7 @@ fun TameRoot(vm: AppViewModel) {
 
         if (vm.sheet == "focus") FocusSheet(vm)
         if (vm.editHabit != null) HabitEditorSheet(vm)
+        if (vm.showConsent) AccessibilityConsentSheet(vm)
 
         ToastBubble(
             vm.toast,

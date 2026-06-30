@@ -62,6 +62,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var systemActions: SystemActions? = null
     var permAccess by mutableStateOf(false); private set
     var permOverlay by mutableStateOf(false); private set
+    var permBattery by mutableStateOf(true); private set
+    // shows the prominent accessibility disclosure/consent before we send the user to
+    // system settings (required by Google Play for non-accessibility-tool use)
+    var showConsent by mutableStateOf(false); private set
 
     private var frictionJob: Job? = null
     private var focusJob: Job? = null
@@ -148,10 +152,23 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         systemActions?.let {
             permAccess = it.isAccessibilityOn()
             permOverlay = it.isOverlayOn()
+            permBattery = it.isBatteryUnrestricted()
         }
     }
-    fun requestAccess() { systemActions?.openAccessibilitySettings() }
+    /**
+     * Tapping the accessibility toggle does NOT jump straight to system settings — it first
+     * shows the in-app disclosure of what the access is for (Play prominent-disclosure rule).
+     * If it's already on, there's nothing to do.
+     */
+    fun requestAccess() {
+        if (systemActions?.isAccessibilityOn() == true) return
+        showConsent = true
+    }
+    /** User read the disclosure and tapped "Turn on" — the affirmative action, then to settings. */
+    fun acceptConsent() { showConsent = false; systemActions?.openAccessibilitySettings() }
+    fun dismissConsent() { showConsent = false }
     fun requestOverlay() { systemActions?.openOverlaySettings() }
+    fun requestBattery() { systemActions?.openBatterySettings() }
 
     // ── onboarding ──
     fun onbNext() { if (onbStep >= 4) finishOnboarding() else onbStep++ }

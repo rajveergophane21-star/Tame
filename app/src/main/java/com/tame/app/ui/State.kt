@@ -70,4 +70,8 @@ interface SystemActions {
     fun isOverlayOn(): Boolean
     /** On Android 12+, ask the user to allow exact alarms so reminders ring on time. */
     fun requestExactAlarmIfNeeded()
+    /** Is Tame exempt from battery optimisation (so the OS won't kill blocking/alarms)? */
+    fun isBatteryUnrestricted(): Boolean
+    /** Open the system battery-optimisation screen so the user can exempt Tame. */
+    fun openBatterySettings()
 }
