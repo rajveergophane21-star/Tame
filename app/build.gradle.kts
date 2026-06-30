@@ -20,7 +20,11 @@ android {
 
     buildTypes {
         release {
+            // Non-debuggable + ART-optimized build — far smoother than the debug build.
+            // Signed with the debug key so it still installs directly for testing.
+            // (minify left off to avoid any R8/serialization risk before launch.)
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

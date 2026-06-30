@@ -36,6 +36,12 @@ class TameAccessibilityService : AccessibilityService() {
     private var feedKey: String? = null
     // true only while the short-form feed itself is on screen (not the rest of the app)
     @Volatile private var onFeedNow = false
+
+    // Short-lived cache of the last window scan so content-changed and scroll events that
+    // fire within a few hundred ms reuse one tree walk instead of each doing their own.
+    private var cachedScan: FeedScan? = null
+    private var cachedScanKey: String? = null
+    private var cachedScanAt = 0L
     private var lastScrollAt = 0L
     private var lastTriggerAt = 0L
     private var lastContentEvalAt = 0L
@@ -190,8 +196,7 @@ class TameAccessibilityService : AccessibilityService() {
         // One node scan tells us if the feed is on screen + the current reel's text.
         if (feedKey != key) { feedKey = key; feedTickAt = now }
 
-        val root = rootInActiveWindow
-        val scan = if (root != null) scanFeed(root, app) else FeedScan(app.feedIsWholeApp, null)
+        val scan = scanFeedCached(app, key, now) ?: FeedScan(app.feedIsWholeApp, null)
         val feedName = app.feed ?: app.name
         onFeedNow = scan.onFeed
 
@@ -265,11 +270,11 @@ class TameAccessibilityService : AccessibilityService() {
         val now = System.currentTimeMillis()
         if (now - lastScrollAt < 700) return
         lastScrollAt = now
-        // A swipe needs the live window to decide what's on screen. Re-scan here: it both
-        // refreshes the on-feed flag (which foreground events can lag behind on a fast swipe)
-        // and gives us the current item's signature for YouTube counting.
-        val root = rootInActiveWindow
-        val scan = if (root != null) scanFeed(root, app) else null
+        // A swipe needs the live window to decide what's on screen. Re-scan here (reusing a
+        // very recent scan if one exists): it both refreshes the on-feed flag (which
+        // foreground events can lag behind on a fast swipe) and gives us the current item's
+        // signature for YouTube counting.
+        val scan = scanFeedCached(app, key, now)
         if (scan != null) onFeedNow = scan.onFeed
         if (!onFeedNow) return
 
@@ -337,6 +342,17 @@ class TameAccessibilityService : AccessibilityService() {
         }
         onFeedNow = false
         feedTickAt = 0L
+        cachedScan = null
+        cachedScanKey = null
+    }
+
+    /** Scan the active window, reusing a result from the last ~250ms for the same app. */
+    private fun scanFeedCached(app: KnownApp, key: String, now: Long): FeedScan? {
+        cachedScan?.let { if (cachedScanKey == key && now - cachedScanAt < 250L) return it }
+        val root = rootInActiveWindow ?: return null
+        val s = scanFeed(root, app)
+        cachedScan = s; cachedScanKey = key; cachedScanAt = now
+        return s
     }
 
     private data class FeedScan(val onFeed: Boolean, val reelText: String?)
