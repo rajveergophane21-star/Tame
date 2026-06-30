@@ -76,7 +76,7 @@ fun HomeScreen(vm: AppViewModel) {
         else -> "Reels today"
     }
     val heroTitle = when {
-        overLimit -> "Frank is fried — feeds locked."
+        overLimit -> "Ape is fried — feeds locked."
         ratio >= 0.85f -> "Easy now. ${vm.settings.reelLimit - vm.settings.todayReels} left."
         else -> "${vm.settings.reelSeconds / 60} min watched"
     }
@@ -332,7 +332,7 @@ private fun PermissionBanner(vm: AppViewModel) {
             style = TextStyle(fontFamily = Bricolage, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = Color.White),
         )
         Text(
-            "Tame needs these two permissions before it can block apps, pause feeds, or count reels.",
+            "APE needs these two permissions before it can block apps, pause feeds, or count reels.",
             style = TextStyle(fontFamily = Hanken, fontSize = 13.sp, color = TameColors.OnDarkSub, lineHeight = 18.sp),
         )
         if (!vm.permAccess) {

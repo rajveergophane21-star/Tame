@@ -162,7 +162,7 @@ fun BlockTakeover(vm: AppViewModel) {
                             )
                         }
                         Text(
-                            text = "Frank's keeping $name shut.",
+                            text = "Ape's keeping $name shut.",
                             textAlign = TextAlign.Center,
                             modifier = Modifier.widthIn(max = 280.dp),
                             style = TextStyle(

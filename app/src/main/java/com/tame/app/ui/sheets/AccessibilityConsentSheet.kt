@@ -61,7 +61,7 @@ fun AccessibilityConsentSheet(vm: AppViewModel) {
             Frank(mood = "neutral", size = 92.dp)
             Spacer(Modifier.height(10.dp))
             Text(
-                "Let Tame step in for you",
+                "Let APE step in for you",
                 style = TextStyle(
                     fontFamily = Bricolage, fontWeight = FontWeight.ExtraBold,
                     fontSize = 24.sp, letterSpacing = (-0.01).em, color = TameColors.Ink,
@@ -71,8 +71,8 @@ fun AccessibilityConsentSheet(vm: AppViewModel) {
 
             DisclosureRow(
                 accent = a.primary,
-                title = "Why Tame needs this",
-                body = "To block or add a pause to the feeds and apps you pick, Tame uses Accessibility access to see what's on your screen.",
+                title = "Why APE needs this",
+                body = "To block or add a pause to the feeds and apps you pick, APE uses Accessibility access to see what's on your screen.",
             )
             DisclosureRow(
                 accent = a.primary,
@@ -82,7 +82,7 @@ fun AccessibilityConsentSheet(vm: AppViewModel) {
             DisclosureRow(
                 accent = a.primary,
                 title = "Stays on your phone",
-                body = "Tame has no account and no servers. Nothing you do is collected, sent off your device, or shared with anyone.",
+                body = "APE has no account and no servers. Nothing you do is collected, sent off your device, or shared with anyone.",
             )
 
             Spacer(Modifier.height(20.dp))

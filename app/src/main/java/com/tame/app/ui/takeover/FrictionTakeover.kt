@@ -175,7 +175,7 @@ fun FrictionTakeover(vm: AppViewModel) {
                 }
 
                 Text(
-                    text = "Breathe with Frank",
+                    text = "Breathe with Ape",
                     style = TextStyle(
                         fontFamily = Bricolage,
                         fontWeight = FontWeight.SemiBold,

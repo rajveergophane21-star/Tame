@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Tame</string>
-    <string name="accessibility_label">Tame</string>
-    <string name="accessibility_description">Tame uses accessibility access to notice when you open a blocked app or a short-form video feed, so it can step in with your stop screen or a calming pause. Everything stays on your phone — no account, no servers.</string>
-    <string name="accessibility_summary">Lets Tame see what app is on screen so it can block feeds and apps for you.</string>
+    <string name="app_name">APE</string>
+    <string name="accessibility_label">APE</string>
+    <string name="accessibility_description">APE uses accessibility access to notice when you open a blocked app or a short-form video feed, so it can step in with your stop screen or a calming pause. Everything stays on your phone — no account, no servers.</string>
+    <string name="accessibility_summary">Lets APE see what app is on screen so it can block feeds and apps for you.</string>
     <string name="habit_channel_name">Habit reminders</string>
     <string name="habit_channel_desc">Alarm-style reminders for your daily habits.</string>
 </resources>

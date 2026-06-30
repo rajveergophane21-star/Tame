@@ -45,11 +45,11 @@ import com.tame.app.ui.theme.accent
 private data class OnbStep(val title: String, val sub: String, val mood: String)
 
 private val onbSteps = listOf(
-    OnbStep("Meet Frank.", "He's your scroll instinct. Right now — wired.", "panic"),
-    OnbStep("He never gets full.", "Every reel asks for one more. Frank obeys.", "worried"),
-    OnbStep("Two switches.", "Tame needs these to step in for you.", "neutral"),
+    OnbStep("Meet Ape.", "He's your scroll instinct. Right now — wired.", "panic"),
+    OnbStep("He never gets full.", "Every reel asks for one more. Ape obeys.", "worried"),
+    OnbStep("Two switches.", "APE needs these to step in for you.", "neutral"),
     OnbStep("What pulls you in?", "Pick the apps you lose time to.", "neutral"),
-    OnbStep("Now Frank can rest.", "You set the limits. He'll relax.", "happy"),
+    OnbStep("Now Ape can rest.", "You set the limits. He'll relax.", "happy"),
 )
 
 @Composable

@@ -89,7 +89,7 @@ fun FocusSheet(vm: AppViewModel) {
 
             // Subtitle.
             Text(
-                text = "Everything closes. Frank goes quiet.",
+                text = "Everything closes. Ape goes quiet.",
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 4.dp),

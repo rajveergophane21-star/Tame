@@ -50,7 +50,7 @@ fun Frank(
     }
     Image(
         painter = painterResource(frankRes(mood)),
-        contentDescription = "Frank",
+        contentDescription = "Ape",
         contentScale = ContentScale.Fit,
         modifier = modifier.size(size).then(anim),
     )
@@ -61,7 +61,7 @@ fun Frank(
 fun FrankFill(mood: String, modifier: Modifier = Modifier) {
     Image(
         painter = painterResource(frankRes(mood)),
-        contentDescription = "Frank",
+        contentDescription = "Ape",
         contentScale = ContentScale.Crop,
         alignment = BiasAlignment(0f, -0.64f),
         modifier = modifier,
