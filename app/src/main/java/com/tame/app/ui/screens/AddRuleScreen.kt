@@ -51,6 +51,7 @@ import com.tame.app.ui.theme.Bricolage
 import com.tame.app.ui.theme.Hanken
 import com.tame.app.ui.theme.TameColors
 import com.tame.app.ui.theme.accent
+import com.tame.app.util.AppEntry
 
 @Composable
 fun AddRuleScreen(vm: AppViewModel) {
@@ -67,9 +68,15 @@ fun AddRuleScreen(vm: AppViewModel) {
 
     val q = d.search.trim().lowercase()
     val feedPicks = AppCatalog.feedKeys.filter { key ->
-        q.isEmpty() || (AppCatalog[key]?.name?.lowercase()?.contains(q) == true)
+        (q.isEmpty() || AppCatalog[key]?.name?.lowercase()?.contains(q) == true) &&
+            // only offer feed apps that are actually installed (until the app list loads)
+            (vm.installedApps.isEmpty() || vm.isFeedInstalled(key))
     }
     val appPicks = vm.installedApps.filter { q.isEmpty() || it.label.lowercase().contains(q) }
+    // surface the usual time-sinks (apps Tame recognises) above the long list of everything else
+    val suggestedPkgs = AppCatalog.apps.flatMap { it.packages }.toSet()
+    val suggestedApps = appPicks.filter { it.packageName in suggestedPkgs }
+    val otherApps = appPicks.filter { it.packageName !in suggestedPkgs }
     val noPicks = d.kind == RuleKind.APP && q.isNotEmpty() && appPicks.isEmpty() && vm.installedApps.isNotEmpty()
 
     Box(
@@ -212,6 +219,16 @@ fun AddRuleScreen(vm: AppViewModel) {
                                 }
                             }
                         }
+                        if (feedPicks.isEmpty() && vm.installedApps.isNotEmpty()) {
+                            Text(
+                                "No supported short-form apps found on this phone.",
+                                modifier = Modifier.padding(vertical = 18.dp),
+                                style = TextStyle(
+                                    fontFamily = Hanken, fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.sp, color = TameColors.TextFaint2,
+                                ),
+                            )
+                        }
                     } else {
                         if (vm.installedApps.isEmpty()) {
                             Text(
@@ -223,14 +240,21 @@ fun AddRuleScreen(vm: AppViewModel) {
                                 ),
                             )
                         }
-                        appPicks.forEach { entry ->
-                            PickRow(
-                                name = entry.label,
-                                sub = "App",
-                                selected = d.targets.contains(entry.packageName),
-                                accentColor = a.primary,
-                                onClick = { vm.toggleDraftTarget(entry.packageName) },
-                            ) { AppIconImage(entry.icon, entry.label) }
+                        if (suggestedApps.isNotEmpty()) {
+                            GroupLabel("Suggested")
+                            suggestedApps.forEach { entry ->
+                                AppPickRow(entry, d.targets.contains(entry.packageName), a.primary) {
+                                    vm.toggleDraftTarget(entry.packageName)
+                                }
+                            }
+                        }
+                        if (otherApps.isNotEmpty()) {
+                            if (suggestedApps.isNotEmpty()) GroupLabel("All apps")
+                            otherApps.forEach { entry ->
+                                AppPickRow(entry, d.targets.contains(entry.packageName), a.primary) {
+                                    vm.toggleDraftTarget(entry.packageName)
+                                }
+                            }
                         }
                         if (noPicks) NoResults(d.search)
                     }
@@ -459,6 +483,31 @@ fun AddRuleScreen(vm: AppViewModel) {
             }
         }
     }
+}
+
+/** Small in-list group header ("Suggested" / "All apps"). */
+@Composable
+private fun GroupLabel(text: String) {
+    Text(
+        text,
+        modifier = Modifier.padding(start = 4.dp, top = 2.dp, bottom = 2.dp),
+        style = TextStyle(
+            fontFamily = Hanken, fontWeight = FontWeight.Bold,
+            fontSize = 12.sp, color = TameColors.TextFaint2,
+        ),
+    )
+}
+
+/** One installed-app row in the whole-app picker. */
+@Composable
+private fun AppPickRow(entry: AppEntry, selected: Boolean, accentColor: Color, onClick: () -> Unit) {
+    PickRow(
+        name = entry.label,
+        sub = "App",
+        selected = selected,
+        accentColor = accentColor,
+        onClick = onClick,
+    ) { AppIconImage(entry.icon, entry.label) }
 }
 
 @Composable

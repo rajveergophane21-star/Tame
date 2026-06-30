@@ -100,6 +100,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return null
     }
 
+    /** Is the short-form feed app for [key] actually installed on this device? */
+    fun isFeedInstalled(key: String): Boolean {
+        val pkgs = AppCatalog[key]?.packages ?: return false
+        return pkgs.any { pkg -> installedApps.any { it.packageName == pkg } || InstalledApps.entry(pkg) != null }
+    }
+
     // ── derived helpers ──
     val settings get() = data.settings
     val rules get() = data.rules
