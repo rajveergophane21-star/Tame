@@ -18,7 +18,9 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.tame.app"
+        // Public app/package id (shown in the Play URL). The internal source package
+        // (namespace) stays com.tame.app — invisible to users, avoids a risky refactor.
+        applicationId = "com.ape.app"
         minSdk = 26
         targetSdk = 35
         versionCode = 1

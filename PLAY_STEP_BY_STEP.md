@@ -31,7 +31,7 @@ You need a public web link to the privacy policy. Easiest free way (GitHub):
 1. Play Console → **Create app**.
 2. App name: **APE** · Default language: English · App or game: **App** · Free.
 3. Tick the policy declarations and create.
-(If it says the package name `com.tame.app` is taken, tell Claude and we'll change it.)
+(If it says the package name `com.ape.app` is taken, tell Claude and we'll pick another.)
 
 ### Step 4 — Turn on Play App Signing & upload the app  (~10 min)
 1. Left menu → **Test and release → Testing → Closed testing** → **Create new release**.

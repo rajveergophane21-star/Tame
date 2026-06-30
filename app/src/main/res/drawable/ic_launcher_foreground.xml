@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Frank, inset into the adaptive-icon safe zone over the accent background -->
+<!-- Ape's face (zoomed), inset into the adaptive-icon safe zone over the accent background -->
 <inset xmlns:android="http://schemas.android.com/apk/res/android"
-    android:drawable="@drawable/frank_calm"
-    android:insetLeft="22%"
-    android:insetTop="22%"
-    android:insetRight="22%"
-    android:insetBottom="22%" />
+    android:drawable="@drawable/frank_face"
+    android:insetLeft="12%"
+    android:insetTop="12%"
+    android:insetRight="12%"
+    android:insetBottom="12%" />

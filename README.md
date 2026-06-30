@@ -61,7 +61,7 @@ On Android 13+ it will also ask to **post notifications** (for habit alarms).
 The app is structured to be Play‑ready, but a few items are **Play Console / policy steps** that only you can complete as the developer:
 
 - **App signing** — create a release keystore and configure `signingConfigs` (or use Play App Signing). The repo ships a debug build only.
-- **`applicationId`** — currently `com.tame.app`; change it to your own unique id before first upload if you prefer.
+- **`applicationId`** — `com.ape.app` (the public package id; the internal source namespace stays `com.tame.app`, which is invisible to users).
 - **Accessibility use declaration** — Play requires a short form explaining *why* the app uses accessibility (here: to detect the foreground app/feed for digital‑wellbeing blocking). A video demo is usually requested.
 - **Full‑screen‑intent declaration** — habit alarms use `USE_FULL_SCREEN_INTENT` (an allowed "alarm" use case); declare it in the Play Console.
 - **Exact alarms** — uses `SCHEDULE_EXACT_ALARM` for reminders, guarded at runtime; no extra declaration needed for user‑set alarms, but verify on your target devices.
