@@ -112,7 +112,7 @@ fun SettingsScreen(vm: AppViewModel) {
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        "Frank's proud.",
+                        "Ape's proud.",
                         style = TextStyle(
                             fontFamily = Bricolage,
                             fontWeight = FontWeight.ExtraBold,
@@ -334,7 +334,7 @@ fun SettingsScreen(vm: AppViewModel) {
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    "Keep Tame running",
+                    "Keep APE running",
                     style = TextStyle(
                         fontFamily = Hanken,
                         fontWeight = FontWeight.Bold,
@@ -416,7 +416,7 @@ fun SettingsScreen(vm: AppViewModel) {
         // ── footer ──
         Spacer(Modifier.height(4.dp))
         Text(
-            "Tame v1.0 · stays on your phone",
+            "APE v1.0 · stays on your phone",
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,
             style = TextStyle(

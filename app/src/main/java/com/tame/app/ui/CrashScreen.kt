@@ -96,5 +96,5 @@ private fun Box2(label: String, filled: Boolean, accentColor: Color, modifier: M
 
 private fun copyToClipboard(ctx: Context, text: String) {
     val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    cm.setPrimaryClip(ClipData.newPlainText("Tame crash", text))
+    cm.setPrimaryClip(ClipData.newPlainText("APE crash", text))
 }

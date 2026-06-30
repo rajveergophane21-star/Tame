@@ -1,10 +1,10 @@
-# Tame 🐒
+# APE 🐒
 
-A calmer relationship with your phone. Tame is a **private, fully‑offline Android app** that helps you stop doom‑scrolling — especially short‑form video — with the help of *Frank the monkey*, your scroll instinct.
+A calmer relationship with your phone. APE is a **private, fully‑offline Android app** that helps you stop doom‑scrolling — especially short‑form video — with the help of *Ape the monkey*, your scroll instinct.
 
 > No account. No servers. No analytics. Everything stays on your device.
 
-This is a native Android implementation (Kotlin + Jetpack Compose) of the "Frank the monkey" design.
+This is a native Android implementation (Kotlin + Jetpack Compose) of the "Ape the monkey" design.
 
 ---
 
@@ -25,7 +25,7 @@ This is a native Android implementation (Kotlin + Jetpack Compose) of the "Frank
 | Habit reminders that ring until stopped | `AlarmManager` exact alarms + full‑screen‑intent notification → `AlarmRingActivity` |
 | Local, offline storage | Jetpack DataStore (JSON), no network |
 
-All UI is Jetpack Compose, pixel‑matched to the design, with the Frank mascot (6 moods), bundled Bricolage Grotesque + Hanken Grotesk fonts, and three accent themes.
+All UI is Jetpack Compose, pixel‑matched to the design, with the Ape mascot (6 moods), bundled Bricolage Grotesque + Hanken Grotesk fonts, and three accent themes.
 
 ---
 
@@ -47,9 +47,9 @@ From the command line (with the Android SDK installed):
 
 ## First‑run setup on the phone
 
-Tame asks for two permissions during onboarding — both are required for blocking to work:
+APE asks for two permissions during onboarding — both are required for blocking to work:
 
-1. **Accessibility access** — so Tame can notice which app/feed is on screen.
+1. **Accessibility access** — so APE can notice which app/feed is on screen.
 2. **Display over other apps** — so the stop screen and floating counter can appear over other apps.
 
 On Android 13+ it will also ask to **post notifications** (for habit alarms).
@@ -70,6 +70,6 @@ The app is structured to be Play‑ready, but a few items are **Play Console / p
 ## Known limitations & notes
 
 - **Feed detection is heuristic.** Recognising the *feed* inside apps like Instagram/YouTube relies on view‑id signatures (see `data/model/AppCatalog.kt`). Apps change their internals over time, so these may need occasional updates. Whole‑app blocking is robust; per‑feed detection is best‑effort. TikTok is treated as feed‑is‑whole‑app.
-- **Blocking requires the "Display over other apps" permission** — Tame launches the stop screen using the overlay permission's background‑activity allowance. If that permission is off, blocking can't appear.
+- **Blocking requires the "Display over other apps" permission** — APE launches the stop screen using the overlay permission's background‑activity allowance. If that permission is off, blocking can't appear.
 - **The in‑app "Reels" screen is a demo** that simulates a feed so you can see the counter and stop screens without leaving the app; real enforcement happens through the accessibility service on actual apps.
 - Screens are laid out edge‑to‑edge with the design's spacing; the bottom navigation respects the gesture‑bar inset.

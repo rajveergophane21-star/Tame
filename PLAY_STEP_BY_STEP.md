@@ -1,10 +1,10 @@
-# Tame → Play Store: the simple, do‑this‑in‑order guide
+# APE → Play Store: the simple, do‑this‑in‑order guide
 
 Written for: a brand‑new developer account, where Claude builds & signs the app for you.
 You mostly click in a web browser and wait. You do **not** need a computer or Android Studio.
 
 What you already have from Claude:
-- **Tame-release.aab** — the file you upload to Play.
+- **APE-release.aab** — the file you upload to Play.
 - **Tame-signing-key.zip** — your signing key + password. **Save it forever, keep it private.**
 - Privacy policy page (`docs/privacy-policy.html`) — host it (see Step 2).
 - Store text — in `STORE_LISTING.md` (copy/paste).
@@ -29,7 +29,7 @@ You need a public web link to the privacy policy. Easiest free way (GitHub):
 
 ### Step 3 — Create the app in Play Console  (~5 min)
 1. Play Console → **Create app**.
-2. App name: **Tame** · Default language: English · App or game: **App** · Free.
+2. App name: **APE** · Default language: English · App or game: **App** · Free.
 3. Tick the policy declarations and create.
 (If it says the package name `com.tame.app` is taken, tell Claude and we'll change it.)
 
@@ -37,7 +37,7 @@ You need a public web link to the privacy policy. Easiest free way (GitHub):
 1. Left menu → **Test and release → Testing → Closed testing** → **Create new release**.
 2. When asked about signing, **accept Play App Signing** (the default — Google safely keeps
    your real key; your upload key is what you keep).
-3. **Upload** the `Tame-release.aab` file Claude sent.
+3. **Upload** the `APE-release.aab` file Claude sent.
 4. Add **release notes** (copy the "What's new" text from `STORE_LISTING.md`). Save.
 
 ### Step 5 — Fill the required forms  (~30 min, copy/paste from STORE_LISTING.md)
@@ -46,8 +46,8 @@ In the left menu, work through each item until it has a green check:
    graphic, and 2+ screenshots (just screenshot the app on your phone).
 2. **App content → Privacy policy** — paste your link from Step 2.
 3. **Data safety** — answer **No data collected / shared**.
-4. **App access** — "All functionality available without special access" (Tame has no login).
-   Add a note: "Enable Accessibility for Tame in Settings to see blocking work."
+4. **App access** — "All functionality available without special access" (APE has no login).
+   Add a note: "Enable Accessibility for APE in Settings to see blocking work."
 5. **Content rating** — fill the questionnaire (comes out *Everyone*).
 6. **Target audience** — 13+; not designed for children.
 7. **Permissions / Accessibility declaration** — when prompted, paste the wording from
@@ -56,7 +56,7 @@ In the left menu, work through each item until it has a green check:
 ### Step 6 — Run the required test  (14 days, mostly waiting)
 New accounts must test before going public:
 1. In your Closed testing track, add **12+ tester emails** (friends/family with Android).
-2. Send them the opt‑in link; they install Tame from Play and use it.
+2. Send them the opt‑in link; they install APE from Play and use it.
 3. Keep the test running **14 days**. If something breaks, tell Claude — we fix it, Claude
    builds a new `.aab` (with a bumped version), you upload it.
 
@@ -64,7 +64,7 @@ New accounts must test before going public:
 1. After the 14 days, Play shows **"Apply for production access"** — complete it.
 2. Create a **Production** release → upload the latest `.aab` → submit.
 3. Google reviews it (a few days; sometimes they ask for a short demo video of the
-   blocking — that's normal). Once approved, Tame is live. 🎉
+   blocking — that's normal). Once approved, APE is live. 🎉
 
 ---
 

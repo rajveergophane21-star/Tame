@@ -95,7 +95,7 @@ fun FocusRunTakeover(vm: AppViewModel) {
                     )
                 } else {
                     Text(
-                        text = "Frank's on guard",
+                        text = "Ape's on guard",
                         style = TextStyle(
                             fontFamily = Bricolage,
                             fontWeight = FontWeight.ExtraBold,

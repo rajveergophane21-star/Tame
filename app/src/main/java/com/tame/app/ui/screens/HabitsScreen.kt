@@ -377,7 +377,7 @@ private fun EmptyHabits(accentColor: Color, onAdd: () -> Unit) {
         )
         Spacer(Modifier.height(5.dp))
         Text(
-            "Add a small daily win — Frank will cheer you on.",
+            "Add a small daily win — Ape will cheer you on.",
             textAlign = TextAlign.Center,
             style = TextStyle(
                 fontFamily = Hanken,

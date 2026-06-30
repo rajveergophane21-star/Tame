@@ -41,7 +41,7 @@ class TameWatchdogJob : JobService() {
         if (nm.getNotificationChannel(CHANNEL_ID) == null) {
             nm.createNotificationChannel(
                 NotificationChannel(CHANNEL_ID, "Protection status", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                    description = "Warns you if Tame's blocking gets switched off."
+                    description = "Warns you if APE's blocking gets switched off."
                 },
             )
         }
@@ -51,8 +51,8 @@ class TameWatchdogJob : JobService() {
         )
         val notif = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle("Tame blocking is off")
-            .setContentText("Turn the Tame accessibility service back on to keep blocking working.")
+            .setContentTitle("APE blocking is off")
+            .setContentText("Turn the APE accessibility service back on to keep blocking working.")
             .setContentIntent(pi)
             .setAutoCancel(true)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
