@@ -14,3 +14,7 @@ local.properties
 /dist
 *.apk
 *.aab
+# signing secrets — never commit these
+*.jks
+*.keystore
+keystore.properties

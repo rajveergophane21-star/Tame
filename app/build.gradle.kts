@@ -1,9 +1,17 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
 }
+
+// Release signing is read from a local, git-ignored keystore.properties (so the key and
+// passwords never enter source control). Without it, the build falls back to debug signing.
+val keystorePropsFile = rootProject.file("keystore.properties")
+val hasReleaseKeystore = keystorePropsFile.exists()
 
 android {
     namespace = "com.tame.app"
@@ -18,13 +26,25 @@ android {
         vectorDrawables { useSupportLibrary = true }
     }
 
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                val props = Properties().apply { FileInputStream(keystorePropsFile).use { load(it) } }
+                storeFile = rootProject.file(props.getProperty("storeFile"))
+                storePassword = props.getProperty("storePassword")
+                keyAlias = props.getProperty("keyAlias")
+                keyPassword = props.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // Non-debuggable + ART-optimized build — far smoother than the debug build.
-            // Signed with the debug key so it still installs directly for testing.
-            // (minify left off to avoid any R8/serialization risk before launch.)
+            // Non-debuggable + ART-optimized build. Signed with your upload key when
+            // keystore.properties is present (for Play); otherwise the debug key so the
+            // project still builds for testing. (minify left off pre-launch to avoid risk.)
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName(if (hasReleaseKeystore) "release" else "debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
