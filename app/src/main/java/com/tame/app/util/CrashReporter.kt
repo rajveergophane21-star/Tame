@@ -23,7 +23,7 @@ object CrashReporter {
                 val sw = StringWriter()
                 throwable.printStackTrace(PrintWriter(sw))
                 val stamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
-                File(app.filesDir, FILE).writeText("APE crash · $stamp\n\n$sw")
+                File(app.filesDir, FILE).writeText("Tame crash · $stamp\n\n$sw")
             }
             prev?.uncaughtException(thread, throwable)
         }

@@ -266,7 +266,7 @@ private fun EmptyState(accentColor: Color, onAdd: () -> Unit) {
         )
         Spacer(Modifier.height(5.dp))
         Text(
-            "Add one to give Ape a break from a feed or app.",
+            "Add one to give Frank a break from a feed or app.",
             textAlign = TextAlign.Center,
             style = TextStyle(
                 fontFamily = Hanken,

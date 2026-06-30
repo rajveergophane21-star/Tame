@@ -1,6 +1,6 @@
-# APE — first Play Store submission guide
+# Tame — first Play Store submission guide
 
-A plain-English, do-this-in-order guide for getting APE onto Google Play, written for a
+A plain-English, do-this-in-order guide for getting Tame onto Google Play, written for a
 **new personal developer account**, an **accessibility-using app**, and a **fully offline /
 no-data** app. Nothing here needs deep coding — where a command is needed, it's spelled out.
 
@@ -48,7 +48,7 @@ keytool -genkey -v -keystore tame-upload.jks -keyalg RSA -keysize 2048 -validity
 - It asks for a password (twice) and some name/org fields — any answers are fine.
 - It produces a file `tame-upload.jks`. **Back this file and the password up somewhere safe**
   (password manager + a copy off your computer). If you lose it you lose the ability to update
-  APE on Play.
+  Tame on Play.
 - Turn ON **Play App Signing** when Console offers it (default, recommended). Your upload key
   signs the upload; Google manages the real distribution key.
 
@@ -75,10 +75,10 @@ The file lands at `app/build/outputs/bundle/release/app-release.aab`. That's wha
 ---
 
 ## Step 3 — Create the app in Play Console
-- Play Console → **Create app**. Name: **APE**. Type: **App**. Free. Accept the declarations.
+- Play Console → **Create app**. Name: **Tame**. Type: **App**. Free. Accept the declarations.
 
 ### Store listing — assets you'll need to prepare
-- **App name:** APE
+- **App name:** Tame
 - **Short description** (≤80 chars) — e.g. "Stop doomscrolling. Block reels & shorts, build
   better habits."
 - **Full description** — say plainly that it blocks/adds friction to short-form feeds and apps
@@ -98,25 +98,25 @@ The file lands at `app/build/outputs/bundle/release/app-release.aab`. That's wha
 
 ### 4b. Data safety form
 - **Does your app collect or share user data?** → **No.**
-- This is true for APE (no servers, no analytics). Answer No to collection and sharing.
+- This is true for Tame (no servers, no analytics). Answer No to collection and sharing.
 
 ### 4c. Permissions Declaration — AccessibilityService (the important one)
 Play will flag the accessibility use. Declare it honestly. Suggested wording:
-- *What it does:* "APE helps users reduce doomscrolling. It uses AccessibilityService to detect
+- *What it does:* "Tame helps users reduce doomscrolling. It uses AccessibilityService to detect
   when a short-form video feed (Reels, Shorts, For You, Spotlight, etc.) or a user-selected app
   is on screen, then shows a stop/friction screen or navigates back, according to rules the user
   set."
 - *Why no other API works:* "There is no alternative API that reveals which screen of a
   third-party app is currently displayed; detecting the feed requires AccessibilityService."
 - *Is the user informed and consenting?* "Yes — a prominent in-app disclosure with explicit
-  consent is shown before the permission is requested." (APE already does this.)
-- **Do NOT** mark APE as an accessibility tool / set `isAccessibilityTool` — wellbeing/blocker
-  apps don't qualify, and claiming it is a rejection cause. (APE is already correct here.)
+  consent is shown before the permission is requested." (Tame already does this.)
+- **Do NOT** mark Tame as an accessibility tool / set `isAccessibilityTool` — wellbeing/blocker
+  apps don't qualify, and claiming it is a rejection cause. (Tame is already correct here.)
 
 ### 4d. Other declarations you may be asked
 - **Full-screen intent / alarms:** if asked, the justification is "habit reminder alarms that
   ring at a user-set time, like an alarm clock."
-- **Content rating:** fill the questionnaire (APE is a utility; answer truthfully — it'll come
+- **Content rating:** fill the questionnaire (Tame is a utility; answer truthfully — it'll come
   out "Everyone").
 - **Target audience:** 13+ / not designed for children.
 - **App access:** there's no login, so choose "All functionality available without special

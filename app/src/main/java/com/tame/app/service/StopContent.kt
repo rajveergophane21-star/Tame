@@ -62,7 +62,7 @@ fun BlockContent(style: String, name: String, lifts: String, onBack: () -> Unit)
                     Box(Modifier.clip(RoundedCornerShape(30.dp)).background(Color.White.copy(alpha = 0.08f)).padding(horizontal = 15.dp, vertical = 7.dp)) {
                         Text("BLOCKED", style = TextStyle(fontFamily = Hanken, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 0.08.em, color = accent.pop))
                     }
-                    Text("Ape's keeping $name shut.", textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 280.dp), style = TextStyle(fontFamily = Bricolage, fontWeight = FontWeight.ExtraBold, fontSize = 32.sp, lineHeight = 36.sp, letterSpacing = (-0.02).em, color = Color.White))
+                    Text("Frank's keeping $name shut.", textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 280.dp), style = TextStyle(fontFamily = Bricolage, fontWeight = FontWeight.ExtraBold, fontSize = 32.sp, lineHeight = 36.sp, letterSpacing = (-0.02).em, color = Color.White))
                     Text("Opens again $lifts.", style = TextStyle(fontFamily = Hanken, fontSize = 15.sp, color = TameColors.OnTakeoverSub))
                 }
             }
@@ -88,7 +88,7 @@ fun FrictionContent(name: String, onStay: () -> Unit, onOpen: () -> Unit) {
                     Box(Modifier.size(150.dp).clip(CircleShape).background(Color(0xFF6E8BEA).copy(alpha = 0.18f)).breathe(4000))
                     Frank("breathe", 104.dp, idle = false, modifier = Modifier.breathe(4000))
                 }
-                Text("Breathe with Ape", style = TextStyle(fontFamily = Bricolage, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, color = Color(0xFFDFE4FB)))
+                Text("Breathe with Frank", style = TextStyle(fontFamily = Bricolage, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, color = Color(0xFFDFE4FB)))
                 Text("$left", style = TextStyle(fontFamily = Bricolage, fontWeight = FontWeight.ExtraBold, fontSize = 52.sp, color = Color.White))
             }
         } else {
