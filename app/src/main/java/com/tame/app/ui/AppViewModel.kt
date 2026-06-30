@@ -85,9 +85,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Icon for a rule target (package). Feed keys use branded badges instead. */
-    fun iconBitmap(target: String): ImageBitmap? =
-        installedApps.firstOrNull { it.packageName == target }?.icon ?: InstalledApps.entry(target)?.icon
+    /**
+     * Real launcher icon for a rule target. Works for both whole-app targets (package
+     * names) and short-form feed keys (e.g. "ig") — a feed key resolves to its installed
+     * app's real icon. Returns null only when the app isn't installed (callers fall back
+     * to the branded tile).
+     */
+    fun iconBitmap(target: String): ImageBitmap? {
+        installedApps.firstOrNull { it.packageName == target }?.icon?.let { return it }
+        InstalledApps.entry(target)?.icon?.let { return it }
+        AppCatalog[target]?.packages?.forEach { pkg ->
+            (installedApps.firstOrNull { it.packageName == pkg }?.icon ?: InstalledApps.entry(pkg)?.icon)?.let { return it }
+        }
+        return null
+    }
 
     // ── derived helpers ──
     val settings get() = data.settings
@@ -189,7 +200,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         Rule(
                             id = "r" + System.currentTimeMillis(),
                             kind = RuleKind.FEED, targets = ids.take(3),
-                            mode = RuleMode.FRICTION, schedMode = SchedMode.ALL_DAY, limit = 40,
+                            // daily limit off by default — a plain all-day friction rule
+                            mode = RuleMode.FRICTION, schedMode = SchedMode.ALL_DAY, limit = 0,
                         )
                     ) + d.rules
                 } else d.rules

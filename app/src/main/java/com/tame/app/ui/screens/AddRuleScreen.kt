@@ -199,7 +199,18 @@ fun AddRuleScreen(vm: AppViewModel) {
                                 selected = d.targets.contains(key),
                                 accentColor = a.primary,
                                 onClick = { vm.toggleDraftTarget(key) },
-                            ) { AppSquare(key = key, size = 40.dp, corner = 12.dp, fontSize = 14.sp) }
+                            ) {
+                                val ic = vm.iconBitmap(key)
+                                if (ic != null) {
+                                    Image(
+                                        bitmap = ic,
+                                        contentDescription = app?.name ?: key,
+                                        modifier = Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)),
+                                    )
+                                } else {
+                                    AppSquare(key = key, size = 40.dp, corner = 12.dp, fontSize = 14.sp)
+                                }
+                            }
                         }
                     } else {
                         if (vm.installedApps.isEmpty()) {

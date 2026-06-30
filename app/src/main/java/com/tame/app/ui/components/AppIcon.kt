@@ -86,23 +86,17 @@ fun AppIconStack(
     }
 }
 
-/** One tile: branded badge for catalog feed keys, real icon for installed packages. */
+/** One tile: the app's real launcher icon when installed, else the branded badge. */
 @Composable
 private fun TargetTile(target: String, size: Dp, iconFor: (String) -> ImageBitmap?, modifier: Modifier = Modifier) {
-    val catalog = AppCatalog[target]
+    val bmp = iconFor(target)
     when {
-        catalog != null -> AppSquare(target, size, size * 0.3f, (size.value * 0.34f).sp, modifier)
-        else -> {
-            val bmp = iconFor(target)
-            if (bmp != null) {
-                Image(
-                    bitmap = bmp,
-                    contentDescription = null,
-                    modifier = modifier.size(size).clip(RoundedCornerShape(size * 0.3f)),
-                )
-            } else {
-                Box(modifier = modifier.size(size).clip(RoundedCornerShape(size * 0.3f)).background(TameColors.FieldBg))
-            }
-        }
+        bmp != null -> Image(
+            bitmap = bmp,
+            contentDescription = null,
+            modifier = modifier.size(size).clip(RoundedCornerShape(size * 0.3f)),
+        )
+        AppCatalog[target] != null -> AppSquare(target, size, size * 0.3f, (size.value * 0.34f).sp, modifier)
+        else -> Box(modifier = modifier.size(size).clip(RoundedCornerShape(size * 0.3f)).background(TameColors.FieldBg))
     }
 }

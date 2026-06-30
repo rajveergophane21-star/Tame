@@ -1,5 +1,6 @@
 package com.tame.app.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -344,12 +345,21 @@ private fun AppsGrid(vm: AppViewModel, onbBg: Color) {
                             }
                             // tile + check badge anchored to the tile's top-right corner
                             Box(modifier = Modifier.size(54.dp)) {
-                                AppSquare(
-                                    key = app.key,
-                                    size = 54.dp,
-                                    corner = 16.dp,
-                                    fontSize = 17.sp,
-                                )
+                                val ic = vm.iconBitmap(app.key)
+                                if (ic != null) {
+                                    Image(
+                                        bitmap = ic,
+                                        contentDescription = app.name,
+                                        modifier = Modifier.size(54.dp).clip(RoundedCornerShape(16.dp)),
+                                    )
+                                } else {
+                                    AppSquare(
+                                        key = app.key,
+                                        size = 54.dp,
+                                        corner = 16.dp,
+                                        fontSize = 17.sp,
+                                    )
+                                }
                                 if (selected) {
                                     Box(
                                         modifier = Modifier

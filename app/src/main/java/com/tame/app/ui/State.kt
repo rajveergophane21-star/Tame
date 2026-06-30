@@ -19,7 +19,7 @@ data class Draft(
     val fromHour: Int = 9,
     val toHour: Int = 17,
     val limit: Int = 40,
-    val limitOn: Boolean = true,
+    val limitOn: Boolean = false,
     val committed: Boolean = false,
     val search: String = "",
     val editingId: String? = null,
