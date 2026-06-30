@@ -206,11 +206,19 @@ class TameAccessibilityService : AccessibilityService() {
             if ((app.reelTextIds.isNotEmpty() || app.reelSignature) && scan.reelText != null) maybeCountReel(key, scan.reelText)
 
             if (!snoozed(key)) {
-                data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.isActiveAt(now) }?.let { rule ->
+                val feedRules = data.rules.filter {
+                    it.kind == RuleKind.FEED && it.targets.contains(key) && it.isActiveAt(now)
+                }
+                // A plain block/friction rule (no daily limit set) locks the feed the whole
+                // time it's active.
+                feedRules.firstOrNull { it.limit <= 0 }?.let { rule ->
                     clearFeed(); enforce(rule.mode, feedName, liftLabel(rule), key, RuleKind.FEED); return
                 }
-                data.rules.firstOrNull { it.kind == RuleKind.FEED && it.targets.contains(key) && it.limit > 0 }?.let { limitRule ->
-                    if (currentReels() >= limitRule.limit) { enforce(limitRule.mode, feedName, "tomorrow", key, RuleKind.FEED); return }
+                // A rule WITH a daily limit must NOT fire on the first reel — it only locks
+                // once today's count has reached the limit. (This was the bug: an all-day
+                // limit rule is always "active", so the check above used to lock it instantly.)
+                feedRules.firstOrNull { it.limit > 0 && currentReels() >= it.limit }?.let { rule ->
+                    clearFeed(); enforce(rule.mode, feedName, "tomorrow", key, RuleKind.FEED); return
                 }
             }
         } else {
