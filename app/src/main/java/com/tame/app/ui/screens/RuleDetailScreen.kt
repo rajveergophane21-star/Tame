@@ -211,8 +211,8 @@ fun RuleDetailScreen(vm: AppViewModel) {
                 )
                 Spacer(Modifier.height(3.dp))
                 Text(
-                    if (committed) "Locked. You can't edit or turn this off — that's the point."
-                    else "Turn on and you can't undo this rule until its schedule ends.",
+                    if (committed) "Locked for 24 hours. You can't edit or turn this off — that's the point."
+                    else "Turn on and you can't edit or undo this rule for 24 hours.",
                     style = TextStyle(
                         fontFamily = Hanken,
                         fontWeight = FontWeight.Normal,

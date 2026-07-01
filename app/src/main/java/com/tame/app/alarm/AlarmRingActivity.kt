@@ -149,8 +149,10 @@ class AlarmRingActivity : ComponentActivity() {
     private fun stopAndFinish() { stopRinging(); finish() }
 
     override fun onStop() {
-        // don't keep ringing/vibrating once we leave the foreground
-        stopRinging()
+        // Only silence the alarm when the user actually dismissed it (Done/Not now → finish()).
+        // A transient stop (lockscreen transition, another window briefly covering us) must NOT
+        // kill the ring — an alarm should keep ringing until it's acknowledged.
+        if (isFinishing) stopRinging()
         super.onStop()
     }
 

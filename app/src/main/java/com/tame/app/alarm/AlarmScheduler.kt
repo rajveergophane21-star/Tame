@@ -55,11 +55,14 @@ object AlarmScheduler {
         val am = context.getSystemService(AlarmManager::class.java)
         val pi = pendingIntent(context, habit)
         val canExact = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) am.canScheduleExactAlarms() else true
+        // When exact alarms aren't permitted, still use setAndAllowWhileIdle (no special
+        // permission needed) so the reminder fires during Doze/idle — the old setWindow()
+        // was a non-idle alarm the OS could hold for hours. Exact just makes it to-the-minute.
         try {
             if (canExact) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi)
-            else am.setWindow(AlarmManager.RTC_WAKEUP, trigger, 60_000L, pi)
+            else am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi)
         } catch (_: SecurityException) {
-            am.set(AlarmManager.RTC_WAKEUP, trigger, pi)
+            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi)
         }
     }
 
@@ -89,7 +92,7 @@ object AlarmScheduler {
             }
             if (cal.timeInMillis <= now.timeInMillis) continue
             val dow = (cal.get(Calendar.DAY_OF_WEEK) + 5) % 7   // Mon=0 .. Sun=6
-            if (habit.days.getOrElse(dow) { true }) return cal.timeInMillis
+            if (habit.days.getOrElse(dow) { false }) return cal.timeInMillis
         }
         return null
     }

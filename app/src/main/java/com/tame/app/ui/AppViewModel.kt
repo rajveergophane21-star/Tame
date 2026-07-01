@@ -63,6 +63,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var installedApps by mutableStateOf<List<AppEntry>>(emptyList()); private set
     private var appsLoaded = false
 
+    // Monotonic suffix so two rules/habits created in the same millisecond still get
+    // distinct ids (their alarm request-codes derive from the id, so collisions would
+    // otherwise make one reminder silently overwrite another).
+    private var idSeq = 0
+    private fun freshId(prefix: String): String = "$prefix${System.currentTimeMillis()}-${idSeq++}"
+
+    /** Force a day list to exactly 7 entries (older/partial saved data may have fewer). */
+    private fun normalizeDays(days: List<Boolean>): List<Boolean> = List(7) { days.getOrElse(it) { false } }
+
     // ── system bridge / permissions ──
     var systemActions: SystemActions? = null
     var permAccess by mutableStateOf(false); private set
@@ -206,7 +215,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun requestBattery() { systemActions?.openBatterySettings() }
 
     // ── onboarding ──
-    fun onbNext() { if (onbStep >= 4) finishOnboarding() else onbStep++ }
+    fun onbNext() {
+        // Don't let the main path advance past the permissions step with accessibility off —
+        // otherwise the app looks "protected" on Home while blocking nothing. (The small "skip"
+        // link is still an honest escape for anyone who really wants to look around first.)
+        if (onbStep == 2 && !permAccess) { buzz("Turn on accessibility so Ape can step in"); return }
+        if (onbStep >= 4) finishOnboarding() else onbStep++
+    }
     fun onbBack() { if (onbStep > 0) onbStep-- }
     fun toggleSelApp(id: String) {
         selApps = if (selApps.contains(id)) selApps - id else selApps + id
@@ -222,7 +237,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     added = true
                     listOf(
                         Rule(
-                            id = "r" + System.currentTimeMillis(),
+                            id = freshId("r"),
                             kind = RuleKind.FEED, targets = ids.take(3),
                             // daily limit off by default — a plain all-day friction rule
                             mode = RuleMode.FRICTION, schedMode = SchedMode.ALL_DAY, limit = 0,
@@ -266,7 +281,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setDraftMode(mode: RuleMode) { draft = draft?.copy(mode = mode) }
     fun setSchedMode(mode: SchedMode) { draft = draft?.copy(schedMode = mode) }
     fun toggleCustomDay(i: Int) {
-        draft = draft?.let { d -> d.copy(days = d.days.toMutableList().also { it[i] = !it[i] }, schedMode = SchedMode.CUSTOM) }
+        draft = draft?.let { d ->
+            val base = normalizeDays(d.days).toMutableList().also { it[i] = !it[i] }
+            d.copy(days = base, schedMode = SchedMode.CUSTOM)
+        }
     }
     fun stepFromH(n: Int) { draft = draft?.let { it.copy(fromHour = ((it.fromHour + n) % 24 + 24) % 24, schedMode = SchedMode.CUSTOM) } }
     fun stepToH(n: Int) { draft = draft?.let { it.copy(toHour = ((it.toHour + n) % 24 + 24) % 24, schedMode = SchedMode.CUSTOM) } }
@@ -279,7 +297,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (r.isLocked(System.currentTimeMillis())) { buzz(); return }
         draft = Draft(
             kind = r.kind, targets = r.targets.toSet(), mode = r.mode,
-            schedMode = r.schedMode, days = r.days, fromHour = r.fromHour, toHour = r.toHour,
+            schedMode = r.schedMode, days = normalizeDays(r.days), fromHour = r.fromHour, toHour = r.toHour,
             limit = if (r.limit > 0) r.limit else 40,
             limitOn = r.kind == RuleKind.FEED && r.limit > 0,
             committed = r.committed, editingId = r.id,
@@ -291,6 +309,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val d = draft ?: return
         val ids = d.targets.toList()
         if (ids.isEmpty()) { buzz("Pick at least one"); return }
+        // A custom-schedule rule with no days chosen would never trigger — don't let it save
+        // silently (it used to display "Every day" and do nothing).
+        if (d.schedMode == SchedMode.CUSTOM && d.days.none { it }) { buzz("Pick at least one day"); return }
         val useLimit = d.kind == RuleKind.FEED && d.limitOn
         viewModelScope.launch {
             if (d.editingId != null) {
@@ -307,7 +328,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 detailId = d.editingId; screen = Screen.DETAIL; draft = null; flash("Rule updated")
             } else {
                 val r = Rule(
-                    id = "r" + System.currentTimeMillis(), kind = d.kind, targets = ids, mode = d.mode,
+                    id = freshId("r"), kind = d.kind, targets = ids, mode = d.mode,
                     schedMode = d.schedMode, days = d.days, fromHour = d.fromHour, toHour = d.toHour,
                     timerEndsAt = if (d.schedMode == SchedMode.TIMER) System.currentTimeMillis() + 60 * 60_000L else null,
                     limit = if (useLimit) d.limit else 0,
@@ -438,7 +459,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun newHabit() { editHabit = EditHabitState(isNew = true) }
     fun editOpen(id: String) {
         val h = habits.firstOrNull { it.id == id } ?: return
-        editHabit = EditHabitState(id = h.id, isNew = false, name = h.name, remind = h.remind, remindOn = h.remindOn, days = h.days)
+        editHabit = EditHabitState(id = h.id, isNew = false, name = h.name, remind = h.remind, remindOn = h.remindOn, days = normalizeDays(h.days))
     }
     fun closeEdit() { editHabit = null }
     fun setEditName(v: String) { editHabit = editHabit?.copy(name = v) }
@@ -452,16 +473,24 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             e.copy(remind = "%02d:%02d".format(h, m))
         }
     }
-    fun toggleEditDay(i: Int) { editHabit = editHabit?.let { it.copy(days = it.days.toMutableList().also { d -> d[i] = !d[i] }) } }
+    fun toggleEditDay(i: Int) {
+        editHabit = editHabit?.let { e ->
+            val base = normalizeDays(e.days).toMutableList().also { d -> d[i] = !d[i] }
+            e.copy(days = base)
+        }
+    }
 
     fun saveEdit() {
         val e = editHabit ?: return
+        // A reminder with no repeat days would never ring — block the save with a hint
+        // instead of persisting a dead reminder that showed a time but never fired.
+        if (e.remindOn && e.days.none { it }) { buzz("Pick at least one day"); return }
         val name = e.name.trim().ifEmpty { "New habit" }
         viewModelScope.launch {
             var saved: Habit? = null
             repo.update { d ->
                 if (e.isNew) {
-                    val nh = Habit(id = "h" + System.currentTimeMillis(), name = name, remind = e.remind, remindOn = e.remindOn, days = e.days, grid = List(28) { 0 })
+                    val nh = Habit(id = freshId("h"), name = name, remind = e.remind, remindOn = e.remindOn, days = e.days, grid = List(28) { 0 })
                     saved = nh
                     d.copy(habits = d.habits + nh)
                 } else {

@@ -66,6 +66,10 @@ class TameAccessibilityService : AccessibilityService() {
     private var blockedPkg: String? = null
     private val snoozeUntil = HashMap<String, Long>()
 
+    // A focusUntil value we just cleared locally (via "Stop focus"). A stale disk emission
+    // still carrying it must not re-arm the session before our own write lands.
+    @Volatile private var clearedFocusUntil = 0L
+
     private fun snoozed(target: String) = System.currentTimeMillis() < (snoozeUntil[target] ?: 0L)
 
     // Input-method packages (the keyboard) — their windows must not count as a
@@ -111,7 +115,14 @@ class TameAccessibilityService : AccessibilityService() {
     private fun rolloverCheck() {
         val last = data.settings.lastReelDay
         if (last.isNotEmpty() && last != TameRepository.today()) {
-            scope.launch { TameApp.repo.rolloverIfNeeded() }
+            // Flush any pending reels and roll over in ONE coroutine, in order, so the flush
+            // can't land after the reset and get mis-attributed to the new day.
+            val n = unflushedReels
+            unflushedReels = 0
+            scope.launch {
+                if (n > 0) TameApp.repo.update { it.copy(settings = it.settings.copy(todayReels = it.settings.todayReels + n)) }
+                TameApp.repo.rolloverIfNeeded()
+            }
         }
     }
 
@@ -119,13 +130,23 @@ class TameAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         scope.launch {
             TameApp.repo.data.collect { newData ->
-                // A new calendar day (rollover) zeroes today's count on disk; mirror that
-                // into the live in-memory counter so the widget resets too.
-                if (newData.settings.lastReelDay != data.settings.lastReelDay) {
-                    liveReels = newData.settings.todayReels
-                    unflushedReels = 0
+                var nd = newData
+                // Ignore a stale disk echo of a Focus we just stopped locally (would otherwise
+                // re-arm the block for a moment until our own focusUntil=0 write lands).
+                val f = nd.settings.focusUntil
+                if (f != 0L && f == clearedFocusUntil) {
+                    nd = nd.copy(settings = nd.settings.copy(focusUntil = 0L))
+                } else if (f == 0L) {
+                    clearedFocusUntil = 0L // disk confirms it's off; stop suppressing
                 }
-                data = newData
+                // A new calendar day (rollover) zeroes today's count on disk; mirror that into
+                // the live in-memory counter. Post onto the main handler so the reset can't race
+                // the reel-counting on the event thread (which also mutates these two fields).
+                if (nd.settings.lastReelDay != data.settings.lastReelDay) {
+                    val reset = nd.settings.todayReels
+                    handler.post { liveReels = reset; unflushedReels = 0 }
+                }
+                data = nd
             }
         }
         handler.postDelayed(recheck, 1200)
@@ -192,9 +213,17 @@ class TameAccessibilityService : AccessibilityService() {
                 handleForeground(pkg)
             }
             AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
-                // content-changed fires continuously while scrolling — throttle the node traversal
                 val now = System.currentTimeMillis()
-                if (pkg == currentPkg && now - lastContentEvalAt >= 500) {
+                if (pkg != currentPkg) {
+                    // The foreground changed without a clean state-change event (common on cold
+                    // launches) — treat this as the switch so blocking applies immediately
+                    // instead of waiting up to ~900ms for the periodic recheck.
+                    currentPkg = pkg
+                    if (blockOverlay?.isShowing == true && pkg != blockedPkg) dismissOverlay()
+                    lastContentEvalAt = now
+                    handleForeground(pkg)
+                } else if (now - lastContentEvalAt >= 500) {
+                    // content-changed fires continuously while scrolling — throttle the traversal
                     lastContentEvalAt = now
                     handleForeground(pkg)
                 }
@@ -300,8 +329,10 @@ class TameAccessibilityService : AccessibilityService() {
         // very recent scan if one exists): it both refreshes the on-feed flag (which
         // foreground events can lag behind on a fast swipe) and gives us the current item's
         // signature for YouTube counting.
-        val scan = scanFeedCached(app, key, now)
-        if (scan != null) onFeedNow = scan.onFeed
+        // A null scan means we couldn't read the window this pass — don't fall through on a
+        // stale onFeedNow from a previous app (that could count/enforce against the wrong feed).
+        val scan = scanFeedCached(app, key, now) ?: return
+        onFeedNow = scan.onFeed
         if (!onFeedNow) return
 
         // Re-apply blocking the instant you swipe, instead of waiting for the next
@@ -324,7 +355,7 @@ class TameAccessibilityService : AccessibilityService() {
     }
 
     /** Show the stop screen as a full-screen overlay (reliable from a service). */
-    private fun enforce(mode: RuleMode, name: String, lifts: String, target: String, kind: RuleKind) {
+    private fun enforce(mode: RuleMode, name: String, lifts: String, target: String, kind: RuleKind, wholeAppFeed: Boolean = false) {
         val now = System.currentTimeMillis()
         if (blockOverlay?.isShowing == true || now - lastTriggerAt < 600) return
         lastTriggerAt = now
@@ -333,8 +364,10 @@ class TameAccessibilityService : AccessibilityService() {
             scope.launch { TameApp.repo.update { it.copy(settings = it.settings.copy(turnbacks = it.settings.turnbacks + 1)) } }
         }
         blockedPkg = currentPkg
-        // FEED: press Back to leave just the feed (stay in the app). APP: go Home.
-        val leave: () -> Unit = if (kind == RuleKind.FEED) {
+        // FEED-in-app (IG Reels): press Back to leave just the feed and stay in the app.
+        // Whole-app feed (TikTok) or APP block: go Home — Back won't escape an app that IS the
+        // feed, so "Back to home" would otherwise just loop the block screen.
+        val leave: () -> Unit = if (kind == RuleKind.FEED && !wholeAppFeed) {
             { runCatching { performGlobalAction(GLOBAL_ACTION_BACK) } }
         } else {
             { runCatching { performGlobalAction(GLOBAL_ACTION_HOME) } }
@@ -371,8 +404,10 @@ class TameAccessibilityService : AccessibilityService() {
 
     /** End the Focus session immediately (from the overlay's "Stop focus"). */
     private fun stopFocus() {
-        // Clear it in memory first so the periodic recheck can't re-block before the
-        // DataStore write lands, then persist and take the screen down.
+        // Remember the value we're clearing so a stale disk emission carrying it can't re-arm
+        // the session (see the collector), clear it in memory so the periodic recheck can't
+        // re-block before the write lands, then persist and take the screen down.
+        clearedFocusUntil = data.settings.focusUntil
         data = data.copy(settings = data.settings.copy(focusUntil = 0L))
         dismissOverlay()
         scope.launch { TameApp.repo.update { it.copy(settings = it.settings.copy(focusUntil = 0L)) } }
@@ -403,12 +438,16 @@ class TameAccessibilityService : AccessibilityService() {
         cachedScanKey = null
     }
 
-    /** Scan the active window, reusing a result from the last ~250ms for the same app. */
+    /**
+     * Scan the active window, reusing a *positive* result from the last ~250ms for the same app.
+     * A negative ("not on feed") scan is never cached — right after the feed appears the first
+     * read can still be empty, and caching that would suppress blocking until the next event.
+     */
     private fun scanFeedCached(app: KnownApp, key: String, now: Long): FeedScan? {
-        cachedScan?.let { if (cachedScanKey == key && now - cachedScanAt < 250L) return it }
+        cachedScan?.let { if (cachedScanKey == key && now - cachedScanAt < 250L && it.onFeed) return it }
         val root = activeRoot() ?: return null
         val s = scanFeed(root, app)
-        cachedScan = s; cachedScanKey = key; cachedScanAt = now
+        if (s.onFeed) { cachedScan = s; cachedScanKey = key; cachedScanAt = now }
         return s
     }
 
@@ -434,11 +473,11 @@ class TameAccessibilityService : AccessibilityService() {
         }
         // A plain block/friction rule (no daily limit) locks the feed whenever it's active.
         feedRules.firstOrNull { it.limit <= 0 }?.let { rule ->
-            clearFeed(); enforce(rule.mode, feedName, liftLabel(rule), key, RuleKind.FEED); return true
+            clearFeed(); enforce(rule.mode, feedName, liftLabel(rule), key, RuleKind.FEED, app.feedIsWholeApp); return true
         }
         // A daily-limit rule only locks once today's count has reached the limit.
         feedRules.firstOrNull { it.limit > 0 && currentReels() >= it.limit }?.let { rule ->
-            clearFeed(); enforce(rule.mode, feedName, "tomorrow", key, RuleKind.FEED); return true
+            clearFeed(); enforce(rule.mode, feedName, "tomorrow", key, RuleKind.FEED, app.feedIsWholeApp); return true
         }
         return false
     }
@@ -517,6 +556,21 @@ class TameAccessibilityService : AccessibilityService() {
 
     override fun onUnbind(intent: Intent?): Boolean {
         handler.removeCallbacks(recheck)
+        // Final synchronous flush BEFORE cancelling the scope — the async batch flush would
+        // otherwise be cancelled and up to ~10s of counted reels + feed seconds would vanish.
+        val addSec = (feedMillisAcc / 1000L).toInt()
+        val n = unflushedReels
+        feedMillisAcc = 0L; unflushedReels = 0
+        if (addSec > 0 || n > 0) {
+            runCatching {
+                TameApp.repo.updateBlocking {
+                    it.copy(settings = it.settings.copy(
+                        reelSeconds = it.settings.reelSeconds + addSec,
+                        todayReels = it.settings.todayReels + n,
+                    ))
+                }
+            }
+        }
         dismissOverlay()
         OverlayManager.hide(this)
         scope.cancel()

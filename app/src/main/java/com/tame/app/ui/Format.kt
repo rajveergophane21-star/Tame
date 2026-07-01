@@ -7,7 +7,8 @@ private val dayShort = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
 fun daysLabel(days: List<Boolean>): String {
     val on = days.mapIndexedNotNull { i, v -> if (v) i else null }
-    if (on.isEmpty() || on.size == 7) return "Every day"
+    if (on.isEmpty()) return "No days"
+    if (on.size == 7) return "Every day"
     if (on.size == 5 && on.all { it < 5 }) return "Weekdays"
     if (on.size == 2 && on[0] == 5 && on[1] == 6) return "Weekends"
     return on.joinToString(" · ") { dayShort[it] }
