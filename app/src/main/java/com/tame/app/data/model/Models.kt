@@ -58,6 +58,7 @@ data class Habit(
     val remindOn: Boolean = true,
     val days: List<Boolean> = List(7) { true },
     val grid: List<Int>,            // 28 cells, 0/1; last index = today
+    val createdAt: Long = 0L,       // epoch millis the habit was created (0 = unknown/legacy)
 ) {
     val doneToday: Boolean get() = grid.lastOrNull() == 1
     val streak: Int
@@ -87,6 +88,7 @@ data class Settings(
     val focusMinutes: Int = 0,            // focus minutes accumulated
     val daysUnderLimit: Int = 0,          // days under the reel limit (last 7)
     val focusUntil: Long = 0L,            // epoch millis a Focus session blocks everything until (0 = off)
+    val darkMode: Boolean = false,        // dark theme on/off
 )
 
 /** Whole persisted state — serialized to a single JSON blob in DataStore. */

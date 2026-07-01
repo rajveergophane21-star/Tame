@@ -6,4 +6,6 @@
     <string name="accessibility_summary">Lets APE see what app is on screen so it can block feeds and apps for you.</string>
     <string name="habit_channel_name">Habit reminders</string>
     <string name="habit_channel_desc">Alarm-style reminders for your daily habits.</string>
+    <string name="widget_label">REELS TODAY</string>
+    <string name="widget_time_default">0m watched</string>
 </resources>

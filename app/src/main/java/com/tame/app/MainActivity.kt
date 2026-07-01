@@ -28,6 +28,10 @@ class MainActivity : ComponentActivity(), SystemActions {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        // Apply the saved theme before the first frame (bootPrefs mirrors the darkMode setting).
+        com.tame.app.ui.theme.TameColors.applyDark(
+            getSharedPreferences("tame_boot", MODE_PRIVATE).getBoolean("dark", false)
+        )
         vm.systemActions = this
         maybeRequestNotifications()
         val initialCrash = CrashReporter.consume(this)
@@ -79,6 +83,14 @@ class MainActivity : ComponentActivity(), SystemActions {
     override fun isBatteryUnrestricted(): Boolean {
         val pm = getSystemService(android.os.PowerManager::class.java) ?: return true
         return pm.isIgnoringBatteryOptimizations(packageName)
+    }
+
+    override fun pinHomeWidget() {
+        val mgr = getSystemService(android.appwidget.AppWidgetManager::class.java) ?: return
+        val provider = android.content.ComponentName(this, com.tame.app.widget.ReelWidgetProvider::class.java)
+        if (mgr.isRequestPinAppWidgetSupported) {
+            runCatching { mgr.requestPinAppWidget(provider, null, null) }
+        }
     }
 
     override fun openBatterySettings() {

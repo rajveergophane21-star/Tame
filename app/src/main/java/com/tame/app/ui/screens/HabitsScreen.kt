@@ -274,6 +274,9 @@ private fun HabitCard(h: Habit, accentColor: Color, popColor: Color, vm: AppView
         // ── 7-col grid of 28 cells ──
         val grid = h.grid
         val last = grid.size - 1
+        // How many trailing cells are actual tracked days (so days before the habit existed
+        // render neutral, not as a wall of red "missed").
+        val age = habitAge(h)
         Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
             grid.chunked(7).forEachIndexed { rowIdx, row ->
                 Row(
@@ -283,6 +286,7 @@ private fun HabitCard(h: Habit, accentColor: Color, popColor: Color, vm: AppView
                     row.forEachIndexed { colIdx, v ->
                         val i = rowIdx * 7 + colIdx
                         val isToday = i == last
+                        val preCreation = (last - i) >= age
                         var cell = Modifier
                             .weight(1f)
                             .aspectRatio(1f)
@@ -293,6 +297,7 @@ private fun HabitCard(h: Habit, accentColor: Color, popColor: Color, vm: AppView
                                     isToday -> it
                                         .background(TameColors.TodayCell)
                                         .dashedBorder(accentColor, 2.dp, 7.dp)
+                                    preCreation -> it.background(TameColors.CellPre)
                                     else -> it.background(TameColors.MissedRed)
                                 }
                             }
@@ -410,6 +415,15 @@ private fun EmptyHabits(accentColor: Color, onAdd: () -> Unit) {
             )
         }
     }
+}
+
+/** Number of days a habit has been tracked (1..28); 28 when unknown (legacy data). */
+private fun habitAge(h: Habit): Int {
+    if (h.createdAt <= 0L) return 28
+    val created = java.time.Instant.ofEpochMilli(h.createdAt)
+        .atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+    val days = java.time.temporal.ChronoUnit.DAYS.between(created, java.time.LocalDate.now()).toInt()
+    return (days + 1).coerceIn(1, 28)
 }
 
 /** A dashed rounded-rect border (CSS `border: Npx dashed color`). */

@@ -20,25 +20,24 @@ val accent: AccentPalette
     @Composable @ReadOnlyComposable
     get() = LocalAccent.current
 
-private val baseText = TextStyle(
-    fontFamily = Hanken,
-    fontWeight = FontWeight.Normal,
-    color = TameColors.Ink,
-    letterSpacing = (-0.011).em,
-)
-
-private val tameTypography = Typography(
-    bodyLarge = baseText.copy(fontSize = 16.sp),
-    bodyMedium = baseText.copy(fontSize = 14.sp),
-    bodySmall = baseText.copy(fontSize = 12.sp),
-    labelLarge = baseText.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
-)
-
 @Composable
 fun TameTheme(
     accent: AccentPalette = Accents.Grove,
     content: @Composable () -> Unit,
 ) {
+    // Built inside the composable so the default text colour tracks the live palette (dark mode).
+    val baseText = TextStyle(
+        fontFamily = Hanken,
+        fontWeight = FontWeight.Normal,
+        color = TameColors.Ink,
+        letterSpacing = (-0.011).em,
+    )
+    val typography = Typography(
+        bodyLarge = baseText.copy(fontSize = 16.sp),
+        bodyMedium = baseText.copy(fontSize = 14.sp),
+        bodySmall = baseText.copy(fontSize = 12.sp),
+        labelLarge = baseText.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
+    )
     val scheme = lightColorScheme(
         primary = accent.primary,
         background = TameColors.Surface,
@@ -49,7 +48,7 @@ fun TameTheme(
     CompositionLocalProvider(LocalAccent provides accent) {
         MaterialTheme(
             colorScheme = scheme,
-            typography = tameTypography,
+            typography = typography,
             content = content,
         )
     }

@@ -108,8 +108,21 @@ class TameAccessibilityService : AccessibilityService() {
             rolloverCheck()
             periodicRecheck()
             maybeFlushReels(System.currentTimeMillis())
+            maybeUpdateWidget()
             handler.postDelayed(this, 900)
         }
+    }
+
+    // Push today's reels + feed time to the home-screen widget, but only when a value
+    // actually changed (avoids redundant RemoteViews updates every tick).
+    private var lastWidgetReels = -1
+    private var lastWidgetSecs = -1
+    private fun maybeUpdateWidget() {
+        val reels = currentReels()
+        val secs = data.settings.reelSeconds + (feedMillisAcc / 1000L).toInt()
+        if (reels == lastWidgetReels && secs == lastWidgetSecs) return
+        lastWidgetReels = reels; lastWidgetSecs = secs
+        com.tame.app.widget.ReelWidgetProvider.update(this, reels, secs)
     }
 
     private fun rolloverCheck() {
@@ -148,6 +161,9 @@ class TameAccessibilityService : AccessibilityService() {
                     val reset = nd.settings.todayReels
                     handler.post { liveReels = reset; unflushedReels = 0 }
                 }
+                // Same process as the app — keep the shared palette in sync so overlays match
+                // the theme even if the service is running before the app was opened.
+                com.tame.app.ui.theme.TameColors.applyDark(nd.settings.darkMode)
                 data = nd
             }
         }

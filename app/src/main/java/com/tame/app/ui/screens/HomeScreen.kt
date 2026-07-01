@@ -1,6 +1,7 @@
 package com.tame.app.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -99,14 +101,14 @@ fun HomeScreen(vm: AppViewModel) {
         ) {
             Column {
                 Text(
-                    "Sunday, June 29",
+                    com.tame.app.ui.todayLabel(),
                     style = TextStyle(
                         fontFamily = Hanken, fontWeight = FontWeight.SemiBold,
                         fontSize = 13.sp, color = TameColors.TextFaint2, letterSpacing = 0.02.em,
                     ),
                 )
                 Text(
-                    "Good evening",
+                    com.tame.app.ui.greetingForNow(),
                     modifier = Modifier.padding(top = 1.dp),
                     style = TextStyle(
                         fontFamily = Bricolage, fontWeight = FontWeight.ExtraBold,
@@ -214,7 +216,7 @@ fun HomeScreen(vm: AppViewModel) {
                 .fillMaxWidth()
                 .shadow(8.dp, RoundedCornerShape(22.dp), clip = false)
                 .clip(RoundedCornerShape(22.dp))
-                .background(TameColors.Ink)
+                .background(TameColors.InkCard)
                 .tap { vm.openFocusSheet() }
                 .padding(horizontal = 20.dp, vertical = 17.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -258,7 +260,7 @@ fun HomeScreen(vm: AppViewModel) {
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
-                "Active",
+                "Your rules",
                 style = TextStyle(
                     fontFamily = Hanken, fontWeight = FontWeight.ExtraBold,
                     fontSize = 15.sp, color = TameColors.Ink,
@@ -304,13 +306,15 @@ fun HomeScreen(vm: AppViewModel) {
             )
         }
 
-        // ── Habits strip ──
+        // ── Habits strip (horizontal scroll so many habits don't squish) ──
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             vm.habits.forEach { h ->
-                HabitCard(vm, h, modifier = Modifier.weight(1f))
+                HabitCard(vm, h, modifier = Modifier.width(96.dp))
             }
         }
     }
@@ -323,7 +327,7 @@ private fun PermissionBanner(vm: AppViewModel) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background(TameColors.Ink)
+            .background(TameColors.InkCard)
             .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {

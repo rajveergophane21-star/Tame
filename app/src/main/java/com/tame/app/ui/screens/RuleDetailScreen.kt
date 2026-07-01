@@ -177,7 +177,7 @@ fun RuleDetailScreen(vm: AppViewModel) {
         }
 
         // ── commit card ──
-        val commitBg = if (committed) TameColors.CommitChipBg else TameColors.Ink
+        val commitBg = if (committed) TameColors.CommitChipBg else TameColors.InkCard
         val lockColor = if (committed) TameColors.CommitGold else a.pop
         val lockText = if (committed) TameColors.Ink else Color.White
         val lockSub = if (committed) TameColors.CommitNoteSub else TameColors.OnDarkSub

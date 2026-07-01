@@ -72,4 +72,6 @@ interface SystemActions {
     fun isBatteryUnrestricted(): Boolean
     /** Open the system battery-optimisation screen so the user can exempt Tame. */
     fun openBatterySettings()
+    /** Ask the launcher to pin the reels home-screen widget (Android 8+). */
+    fun pinHomeWidget()
 }

@@ -31,7 +31,7 @@ fun ToastBubble(toast: ToastState?, modifier: Modifier = Modifier) {
         Row(
             modifier = Modifier
                 .clip(RoundedCornerShape(30.dp))
-                .background(TameColors.Ink)
+                .background(TameColors.InkCard)
                 .padding(horizontal = 18.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(9.dp),

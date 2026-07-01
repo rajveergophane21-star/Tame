@@ -2,6 +2,22 @@ package com.tame.app.ui
 
 import com.tame.app.data.model.Rule
 import com.tame.app.data.model.SchedMode
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+
+/** "Good morning / afternoon / evening" for the current time of day. */
+fun greetingForNow(): String = when (LocalTime.now().hour) {
+    in 0..4 -> "Still up?"
+    in 5..11 -> "Good morning"
+    in 12..16 -> "Good afternoon"
+    else -> "Good evening"
+}
+
+/** Today's date like "Sunday, June 29". */
+fun todayLabel(): String =
+    LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.getDefault()))
 
 private val dayShort = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 

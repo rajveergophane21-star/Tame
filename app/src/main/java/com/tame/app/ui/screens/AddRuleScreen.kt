@@ -416,7 +416,7 @@ fun AddRuleScreen(vm: AppViewModel) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(18.dp))
-                    .background(TameColors.Ink)
+                    .background(TameColors.InkCard)
                     .tap { vm.toggleDraftCommit() }
                     .padding(horizontal = 18.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,

@@ -91,6 +91,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             repo.data.collect { d ->
                 data = d
+                // Keep the theme in sync with the stored setting (no-ops if already applied).
+                com.tame.app.ui.theme.TameColors.applyDark(d.settings.darkMode)
                 // If a Focus session was still running (e.g. app was reopened), restore the
                 // countdown UI so the End button is reachable. The service enforces it either way.
                 if (!focusRestored) {
@@ -490,7 +492,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             var saved: Habit? = null
             repo.update { d ->
                 if (e.isNew) {
-                    val nh = Habit(id = freshId("h"), name = name, remind = e.remind, remindOn = e.remindOn, days = e.days, grid = List(28) { 0 })
+                    val nh = Habit(id = freshId("h"), name = name, remind = e.remind, remindOn = e.remindOn, days = e.days, grid = List(28) { 0 }, createdAt = System.currentTimeMillis())
                     saved = nh
                     d.copy(habits = d.habits + nh)
                 } else {
@@ -532,6 +534,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // ── reel counter widget ──
     fun toggleCounter() =
         persist { d -> d.copy(settings = d.settings.copy(counterEnabled = !d.settings.counterEnabled)) }
+
+    // ── dark mode ──
+    // Apply instantly (no wait for the DataStore round-trip) and mirror to bootPrefs so
+    // MainActivity can set the palette at launch with no flash.
+    fun toggleDark() {
+        val next = !data.settings.darkMode
+        com.tame.app.ui.theme.TameColors.applyDark(next)
+        bootPrefs.edit().putBoolean("dark", next).apply()
+        persist { d -> d.copy(settings = d.settings.copy(darkMode = next)) }
+    }
+
+    // ── home-screen widget ──
+    /** Ask the launcher to pin the reels widget (Android 8+). */
+    fun addHomeWidget() { systemActions?.pinHomeWidget() }
 
     // ── daily reset (shared with the service) ──
     fun ensureDay() = viewModelScope.launch { repo.rolloverIfNeeded() }

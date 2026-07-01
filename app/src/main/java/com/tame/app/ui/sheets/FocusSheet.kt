@@ -132,7 +132,7 @@ private fun FocusOption(
     val base = if (dark) {
         modifier
             .clip(RoundedCornerShape(18.dp))
-            .background(TameColors.Ink)
+            .background(TameColors.InkCard)
     } else {
         // box-shadow: 0 1px 0 #ECE8DC -> flat card with a 1px bottom edge.
         modifier

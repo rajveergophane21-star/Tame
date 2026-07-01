@@ -93,7 +93,7 @@ fun SettingsScreen(vm: AppViewModel) {
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(26.dp))
-                .background(TameColors.Ink)
+                .background(TameColors.InkCard)
                 .padding(22.dp),
         ) {
             Row(
@@ -145,13 +145,13 @@ fun SettingsScreen(vm: AppViewModel) {
                 modifier = Modifier.weight(1f),
                 value = vm.settings.turnbacks.toString(),
                 label1 = "Turned back",
-                label2 = "this week",
+                label2 = "all-time",
             )
             StatCard(
                 modifier = Modifier.weight(1f),
                 value = focusTimeLabel(vm.settings.focusMinutes),
                 label1 = "Focus time",
-                label2 = "this week",
+                label2 = "all-time",
             )
             StatCard(
                 modifier = Modifier.weight(1f),
@@ -256,6 +256,88 @@ fun SettingsScreen(vm: AppViewModel) {
                 )
             }
             TameSwitch(on = vm.settings.counterEnabled)
+        }
+
+        // ── dark mode toggle ──
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(1.dp, RoundedCornerShape(20.dp), clip = false)
+                .clip(RoundedCornerShape(20.dp))
+                .background(TameColors.Card)
+                .tap { vm.toggleDark() }
+                .padding(horizontal = 18.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(TameColors.ChipBg),
+                contentAlignment = Alignment.Center,
+            ) {
+                SvgIcon(listOf(VPath("M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z", sw = 2f)), 20.dp, a.primary)
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Dark mode",
+                    style = TextStyle(fontFamily = Hanken, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TameColors.Ink),
+                )
+                Spacer(Modifier.height(1.dp))
+                Text(
+                    "Easier on the eyes at night",
+                    style = TextStyle(fontFamily = Hanken, fontWeight = FontWeight.Normal, fontSize = 12.5.sp, color = TameColors.TextFaint),
+                )
+            }
+            TameSwitch(on = vm.settings.darkMode)
+        }
+
+        // ── home-screen widget ──
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(1.dp, RoundedCornerShape(20.dp), clip = false)
+                .clip(RoundedCornerShape(20.dp))
+                .background(TameColors.Card)
+                .tap { vm.addHomeWidget() }
+                .padding(horizontal = 18.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(TameColors.ChipBg),
+                contentAlignment = Alignment.Center,
+            ) {
+                SvgIcon(
+                    listOf(
+                        VRect(3f, 3f, 7f, 7f, rx = 1.5f, sw = 2f),
+                        VRect(14f, 3f, 7f, 7f, rx = 1.5f, sw = 2f),
+                        VRect(3f, 14f, 7f, 7f, rx = 1.5f, sw = 2f),
+                        VRect(14f, 14f, 7f, 7f, rx = 1.5f, sw = 2f),
+                    ),
+                    20.dp,
+                    a.primary,
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Home screen widget",
+                    style = TextStyle(fontFamily = Hanken, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TameColors.Ink),
+                )
+                Spacer(Modifier.height(1.dp))
+                Text(
+                    "Show today's reels & time on your home screen",
+                    style = TextStyle(fontFamily = Hanken, fontWeight = FontWeight.Normal, fontSize = 12.5.sp, color = TameColors.TextFaint),
+                )
+            }
+            Text(
+                "Add",
+                style = TextStyle(fontFamily = Hanken, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = a.primary),
+            )
         }
 
         // ── permission status card ──
@@ -384,7 +466,7 @@ fun SettingsScreen(vm: AppViewModel) {
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(22.dp))
-                .background(TameColors.Ink)
+                .background(TameColors.InkCard)
                 .padding(18.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(13.dp),
