@@ -17,7 +17,20 @@ Upload to YouTube (Unlisted) or Google Drive (anyone-with-link) and paste the UR
 
 ---
 
-## Voiceover script (~45s — read slowly)
+## Voiceover script — SHORT (~30s)
+
+APE helps you doomscroll less. To block or pause the apps and feeds you pick, it uses
+Android's Accessibility service to see which app or feed is on screen. *(card appears)*
+
+Before turning it on, APE shows this disclosure — why it's needed, what it reads, and
+that nothing leaves your phone: no account, no servers, nothing collected or shared.
+
+You tap "Turn on protection" to allow, or "Not now" to decline. *(tap)* Then APE opens
+Accessibility settings.
+
+---
+
+## Voiceover script — LONG (~45s, read slowly)
 
 This is APE — an app that helps you cut down on doomscrolling.
 
