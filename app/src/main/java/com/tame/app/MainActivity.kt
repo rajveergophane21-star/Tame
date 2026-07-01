@@ -76,19 +76,6 @@ class MainActivity : ComponentActivity(), SystemActions {
 
     override fun isOverlayOn(): Boolean = Settings.canDrawOverlays(this)
 
-    override fun requestExactAlarmIfNeeded() {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            val am = getSystemService(android.app.AlarmManager::class.java)
-            if (am != null && !am.canScheduleExactAlarms()) {
-                runCatching {
-                    startActivity(
-                        Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:$packageName"))
-                    )
-                }
-            }
-        }
-    }
-
     override fun isBatteryUnrestricted(): Boolean {
         val pm = getSystemService(android.os.PowerManager::class.java) ?: return true
         return pm.isIgnoringBatteryOptimizations(packageName)

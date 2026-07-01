@@ -500,7 +500,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
             saved?.let { syncAlarm(it) }
-            if (saved?.remindOn == true) systemActions?.requestExactAlarmIfNeeded()
             editHabit = null
             flash(if (e.isNew) "Habit added" else "Habit saved")
         }

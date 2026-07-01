@@ -6,7 +6,6 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import com.tame.app.data.model.Habit
 import java.util.Calendar
 
@@ -54,16 +53,10 @@ object AlarmScheduler {
         val trigger = nextTrigger(habit) ?: return
         val am = context.getSystemService(AlarmManager::class.java)
         val pi = pendingIntent(context, habit)
-        val canExact = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) am.canScheduleExactAlarms() else true
-        // When exact alarms aren't permitted, still use setAndAllowWhileIdle (no special
-        // permission needed) so the reminder fires during Doze/idle — the old setWindow()
-        // was a non-idle alarm the OS could hold for hours. Exact just makes it to-the-minute.
-        try {
-            if (canExact) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi)
-            else am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi)
-        } catch (_: SecurityException) {
-            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi)
-        }
+        // setAndAllowWhileIdle needs no special permission and still fires during Doze/idle
+        // (accurate to within a few minutes) — we deliberately avoid the Play-restricted
+        // SCHEDULE_EXACT_ALARM. Reminders are habit nudges, so to-the-minute isn't required.
+        am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi)
     }
 
     fun cancel(context: Context, habitId: String) {

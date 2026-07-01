@@ -4,8 +4,10 @@
 
     <!-- Draw the stop screen + floating reel counter over other apps -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-    <!-- Habit reminders that ring until stopped -->
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- Habit reminders that ring until stopped. We intentionally do NOT request
+         SCHEDULE_EXACT_ALARM (a Play-restricted permission); reminders use
+         setAndAllowWhileIdle, which fires during Doze without any special permission —
+         accurate to within a few minutes, which is fine for habit nudges. -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
