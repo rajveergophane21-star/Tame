@@ -136,8 +136,10 @@ class TameAccessibilityService : AccessibilityService() {
                 val f = nd.settings.focusUntil
                 if (f != 0L && f == clearedFocusUntil) {
                     nd = nd.copy(settings = nd.settings.copy(focusUntil = 0L))
-                } else if (f == 0L) {
-                    clearedFocusUntil = 0L // disk confirms it's off; stop suppressing
+                } else {
+                    // Off (0) or a genuinely new session — stop suppressing so a stale value
+                    // can't linger and wrongly cancel a later focus that happens to reuse it.
+                    clearedFocusUntil = 0L
                 }
                 // A new calendar day (rollover) zeroes today's count on disk; mirror that into
                 // the live in-memory counter. Post onto the main handler so the reset can't race

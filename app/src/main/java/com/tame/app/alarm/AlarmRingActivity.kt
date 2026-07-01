@@ -7,6 +7,8 @@ import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -52,6 +54,10 @@ class AlarmRingActivity : ComponentActivity() {
 
     private var player: MediaPlayer? = null
     private var vibrator: Vibrator? = null
+    // Safety cap: an alarm rings until the user acknowledges it, but never unbounded — if the
+    // screen is left (e.g. Home pressed) the ring would otherwise loop forever in the background.
+    private val ringHandler = Handler(Looper.getMainLooper())
+    private val autoStop = Runnable { stopAndFinish() }
     private var habitId: String? = null
     private var nameState by mutableStateOf("Habit")
     private var timeState by mutableStateOf("")
@@ -122,9 +128,13 @@ class AlarmRingActivity : ComponentActivity() {
             @Suppress("DEPRECATION") (getSystemService(VIBRATOR_SERVICE) as Vibrator)
         }
         vibrator?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 600, 600), 0))
+        // Auto-silence after 2 minutes if never acknowledged, so it can't ring forever.
+        ringHandler.removeCallbacks(autoStop)
+        ringHandler.postDelayed(autoStop, 120_000L)
     }
 
     private fun stopRinging() {
+        ringHandler.removeCallbacks(autoStop)
         runCatching { player?.stop(); player?.release() }
         player = null
         runCatching { vibrator?.cancel() }
