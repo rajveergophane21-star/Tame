@@ -90,9 +90,9 @@ class TameAccessibilityService : AccessibilityService() {
     private val recheck = object : Runnable {
         override fun run() {
             rolloverCheck()
-            recheckApps()
+            periodicRecheck()
             maybeFlushReels(System.currentTimeMillis())
-            handler.postDelayed(this, 1200)
+            handler.postDelayed(this, 900)
         }
     }
 
@@ -141,13 +141,16 @@ class TameAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun recheckApps() {
+    /**
+     * Safety-net re-evaluation of the current app/feed on a timer, so blocking still
+     * applies when accessibility events are sparse or the screen read came back empty
+     * on the last event (both common while scrolling a feed).
+     */
+    private fun periodicRecheck() {
         val pkg = currentPkg ?: return
         if (pkg == packageName || blockOverlay?.isShowing == true) return
-        val now = System.currentTimeMillis()
-        data.rules.firstOrNull { it.kind == RuleKind.APP && it.targets.contains(pkg) && it.isActiveAt(now) }?.let { rule ->
-            if (!snoozed(pkg)) enforce(rule.mode, appLabel(pkg), liftLabel(rule), pkg, RuleKind.APP)
-        }
+        cachedScan = null // force a fresh window read
+        handleForeground(pkg)
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -197,7 +200,6 @@ class TameAccessibilityService : AccessibilityService() {
         if (feedKey != key) { feedKey = key; feedTickAt = now }
 
         val scan = scanFeedCached(app, key, now) ?: FeedScan(app.feedIsWholeApp, null)
-        val feedName = app.feed ?: app.name
         onFeedNow = scan.onFeed
 
         if (scan.onFeed) {
@@ -205,22 +207,7 @@ class TameAccessibilityService : AccessibilityService() {
             // content-based counting (Instagram caption / YouTube @handle): a substantial change = new reel
             if ((app.reelTextIds.isNotEmpty() || app.reelSignature) && scan.reelText != null) maybeCountReel(key, scan.reelText)
 
-            if (!snoozed(key)) {
-                val feedRules = data.rules.filter {
-                    it.kind == RuleKind.FEED && it.targets.contains(key) && it.isActiveAt(now)
-                }
-                // A plain block/friction rule (no daily limit set) locks the feed the whole
-                // time it's active.
-                feedRules.firstOrNull { it.limit <= 0 }?.let { rule ->
-                    clearFeed(); enforce(rule.mode, feedName, liftLabel(rule), key, RuleKind.FEED); return
-                }
-                // A rule WITH a daily limit must NOT fire on the first reel — it only locks
-                // once today's count has reached the limit. (This was the bug: an all-day
-                // limit rule is always "active", so the check above used to lock it instantly.)
-                feedRules.firstOrNull { it.limit > 0 && currentReels() >= it.limit }?.let { rule ->
-                    clearFeed(); enforce(rule.mode, feedName, "tomorrow", key, RuleKind.FEED); return
-                }
-            }
+            if (enforceFeed(key, app, now)) return
         } else {
             feedTickAt = now // not on the feed right now — don't accumulate time
         }
@@ -285,6 +272,10 @@ class TameAccessibilityService : AccessibilityService() {
         val scan = scanFeedCached(app, key, now)
         if (scan != null) onFeedNow = scan.onFeed
         if (!onFeedNow) return
+
+        // Re-apply blocking the instant you swipe, instead of waiting for the next
+        // foreground/content event (which may not fire or may read an empty screen).
+        if (enforceFeed(key, app, now)) return
 
         // YouTube: count distinct Shorts by content signature (deduped, so this and the
         // content-changed path can't double-count). Others: one count per swipe.
@@ -357,10 +348,41 @@ class TameAccessibilityService : AccessibilityService() {
     /** Scan the active window, reusing a result from the last ~250ms for the same app. */
     private fun scanFeedCached(app: KnownApp, key: String, now: Long): FeedScan? {
         cachedScan?.let { if (cachedScanKey == key && now - cachedScanAt < 250L) return it }
-        val root = rootInActiveWindow ?: return null
+        val root = activeRoot() ?: return null
         val s = scanFeed(root, app)
         cachedScan = s; cachedScanKey = key; cachedScanAt = now
         return s
+    }
+
+    /**
+     * rootInActiveWindow is frequently null mid-scroll, which used to make blocking
+     * intermittent. Fall back to the active window from the windows list.
+     */
+    private fun activeRoot(): AccessibilityNodeInfo? {
+        rootInActiveWindow?.let { return it }
+        return runCatching {
+            val ws = windows
+            ws.firstOrNull { it.isActive }?.root
+                ?: ws.mapNotNull { it.root }.firstOrNull { it.packageName != packageName }
+        }.getOrNull()
+    }
+
+    /** If a feed rule applies to [key] right now, step in. Returns true if it did. */
+    private fun enforceFeed(key: String, app: KnownApp, now: Long): Boolean {
+        if (snoozed(key)) return false
+        val feedName = app.feed ?: app.name
+        val feedRules = data.rules.filter {
+            it.kind == RuleKind.FEED && it.targets.contains(key) && it.isActiveAt(now)
+        }
+        // A plain block/friction rule (no daily limit) locks the feed whenever it's active.
+        feedRules.firstOrNull { it.limit <= 0 }?.let { rule ->
+            clearFeed(); enforce(rule.mode, feedName, liftLabel(rule), key, RuleKind.FEED); return true
+        }
+        // A daily-limit rule only locks once today's count has reached the limit.
+        feedRules.firstOrNull { it.limit > 0 && currentReels() >= it.limit }?.let { rule ->
+            clearFeed(); enforce(rule.mode, feedName, "tomorrow", key, RuleKind.FEED); return true
+        }
+        return false
     }
 
     private data class FeedScan(val onFeed: Boolean, val reelText: String?)
