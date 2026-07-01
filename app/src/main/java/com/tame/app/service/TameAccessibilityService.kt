@@ -194,11 +194,16 @@ class TameAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val e = event ?: return
         val pkg = e.packageName?.toString() ?: return
-        // When APE itself comes to the foreground, always take any stop screen down so the
-        // in-app End/Stop controls are reachable. This guarantees the user can never be
-        // trapped behind the overlay (e.g. to end a Focus session).
+        // Events from our own package need care: the real app UI (MainActivity) coming to the
+        // foreground SHOULD take a stop screen down so in-app controls are reachable — but our
+        // OWN stop-screen overlay also reports events under our package name (the friction
+        // countdown ticking, block-screen text), and dismissing on those tears the overlay down
+        // and re-triggers the block in a loop (the blinking). So only react to MainActivity's
+        // own window-state change; ignore everything else from our package.
         if (pkg == packageName) {
-            if (blockOverlay?.isShowing == true) dismissOverlay()
+            val isAppUi = e.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
+                e.className?.toString()?.contains("MainActivity") == true
+            if (isAppUi && blockOverlay?.isShowing == true) dismissOverlay()
             return
         }
         // Ignore the keyboard, status bar/notification shade, dialogs and our own
@@ -213,17 +218,13 @@ class TameAccessibilityService : AccessibilityService() {
                 handleForeground(pkg)
             }
             AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
+                // Only act on content-changed for the app we already consider foreground. A real
+                // app switch reliably fires a state-change (handled above) or is caught by the
+                // ~900ms periodic recheck (which reads the true active window). Treating a
+                // content event from any other package as a switch would misfire on things like
+                // a picture-in-picture video or a floating window and flicker a valid block.
                 val now = System.currentTimeMillis()
-                if (pkg != currentPkg) {
-                    // The foreground changed without a clean state-change event (common on cold
-                    // launches) — treat this as the switch so blocking applies immediately
-                    // instead of waiting up to ~900ms for the periodic recheck.
-                    currentPkg = pkg
-                    if (blockOverlay?.isShowing == true && pkg != blockedPkg) dismissOverlay()
-                    lastContentEvalAt = now
-                    handleForeground(pkg)
-                } else if (now - lastContentEvalAt >= 500) {
-                    // content-changed fires continuously while scrolling — throttle the traversal
+                if (pkg == currentPkg && now - lastContentEvalAt >= 500) {
                     lastContentEvalAt = now
                     handleForeground(pkg)
                 }
