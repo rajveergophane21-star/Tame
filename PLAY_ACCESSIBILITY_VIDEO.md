@@ -30,6 +30,22 @@ Accessibility settings.
 
 ---
 
+## Voiceover script — MID (~40s, recommended)
+
+APE helps you cut back on doomscrolling. To block or add a pause to the apps and
+short-form feeds you choose, it uses Android's Accessibility service to recognize which
+app or feed is on your screen. *(card appears)*
+
+Before you turn it on, APE shows this disclosure. It explains WHY it's needed — to see
+what's on screen so it can block the feeds and apps you pick. WHAT it reads — on-screen
+content only, to recognize short-form feeds like Reels, Shorts, and For You. And that
+everything STAYS ON YOUR PHONE — no account, no servers, nothing collected or shared.
+
+You tap "Turn on protection" to allow, or "Not now" to decline. *(tap)* Only then does
+APE open Accessibility settings.
+
+---
+
 ## Voiceover script — LONG (~45s, read slowly)
 
 This is APE — an app that helps you cut down on doomscrolling.
