@@ -54,6 +54,9 @@ class BlockOverlay(
     fun showFriction(name: String, onOpenAnyway: () -> Unit) =
         mount { FrictionContent(name = name, onStay = ::leave, onOpen = { hide(); onOpenAnyway() }) }
 
+    fun showFocusBlock(name: String, onStopFocus: () -> Unit) =
+        mount { FocusBlockContent(name = name, onStop = { hide(); onStopFocus() }, onBack = ::leave) }
+
     private fun mount(content: @Composable () -> Unit) {
         if (view != null) return
         savedState.performAttach()

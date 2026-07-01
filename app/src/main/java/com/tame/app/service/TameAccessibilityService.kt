@@ -173,6 +173,13 @@ class TameAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val e = event ?: return
         val pkg = e.packageName?.toString() ?: return
+        // When APE itself comes to the foreground, always take any stop screen down so the
+        // in-app End/Stop controls are reachable. This guarantees the user can never be
+        // trapped behind the overlay (e.g. to end a Focus session).
+        if (pkg == packageName) {
+            if (blockOverlay?.isShowing == true) dismissOverlay()
+            return
+        }
         // Ignore the keyboard, status bar/notification shade, dialogs and our own
         // windows so they don't masquerade as a foreground-app change (this was
         // making the reel counter vanish after a few seconds).
@@ -202,7 +209,7 @@ class TameAccessibilityService : AccessibilityService() {
         // 0) Focus session — block everything except APE and essential apps (launcher/dialer).
         if (data.settings.focusUntil > now && pkg !in essentialPackages) {
             clearFeed()
-            enforce(RuleMode.BLOCK, appLabel(pkg), "when your focus ends", pkg, RuleKind.APP)
+            enforceFocus(pkg)
             return
         }
 
@@ -343,6 +350,33 @@ class TameAccessibilityService : AccessibilityService() {
                 blockedPkg = null
             })
         }
+    }
+
+    /**
+     * Focus-session stop screen. Unlike a normal block it ALWAYS offers a "Stop focus"
+     * exit right on the overlay, so a Focus session can never lock you out — even before
+     * you reach APE. "Back to home" goes Home (the launcher is never blocked).
+     */
+    private fun enforceFocus(pkg: String) {
+        val now = System.currentTimeMillis()
+        if (blockOverlay?.isShowing == true || now - lastTriggerAt < 600) return
+        lastTriggerAt = now
+        OverlayManager.hide(this)
+        blockedPkg = currentPkg
+        val palette = Accents.byKey(data.settings.accentKey)
+        val overlay = BlockOverlay(this, palette, onLeave = { runCatching { performGlobalAction(GLOBAL_ACTION_HOME) } })
+        blockOverlay = overlay
+        overlay.showFocusBlock(appLabel(pkg), onStopFocus = { stopFocus() })
+    }
+
+    /** End the Focus session immediately (from the overlay's "Stop focus"). */
+    private fun stopFocus() {
+        // Clear it in memory first so the periodic recheck can't re-block before the
+        // DataStore write lands, then persist and take the screen down.
+        data = data.copy(settings = data.settings.copy(focusUntil = 0L))
+        dismissOverlay()
+        scope.launch { TameApp.repo.update { it.copy(settings = it.settings.copy(focusUntil = 0L)) } }
+        runCatching { performGlobalAction(GLOBAL_ACTION_HOME) }
     }
 
     private fun appLabel(pkg: String): String =

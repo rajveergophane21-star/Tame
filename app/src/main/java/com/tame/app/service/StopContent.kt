@@ -74,6 +74,31 @@ fun BlockContent(style: String, name: String, lifts: String, onBack: () -> Unit)
     }
 }
 
+/** Focus-session block screen — always offers a clear "Stop focus" exit. */
+@Composable
+fun FocusBlockContent(name: String, onStop: () -> Unit, onBack: () -> Unit) {
+    val accent = LocalAccent.current
+    Box(Modifier.fillMaxSize().background(TameColors.InkDark).padding(horizontal = 36.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(420.dp).glow(accent.primary.copy(alpha = 0.12f)))
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Frank("zen", 118.dp)
+            Box(Modifier.padding(top = 6.dp).clip(RoundedCornerShape(30.dp)).background(Color.White.copy(alpha = 0.08f)).padding(horizontal = 15.dp, vertical = 7.dp)) {
+                Text("FOCUS ON", style = TextStyle(fontFamily = Hanken, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 0.08.em, color = accent.pop))
+            }
+            Text("Stay with it.", textAlign = TextAlign.Center, modifier = Modifier.padding(top = 14.dp), style = TextStyle(fontFamily = Bricolage, fontWeight = FontWeight.ExtraBold, fontSize = 32.sp, letterSpacing = (-0.02).em, color = Color.White))
+            Text("$name is paused while you focus.", textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp).widthIn(max = 260.dp), style = TextStyle(fontFamily = Hanken, fontSize = 15.sp, lineHeight = 22.sp, color = TameColors.OnTakeoverSub))
+
+            Box(
+                Modifier.padding(top = 34.dp).height(56.dp).clip(RoundedCornerShape(32.dp)).background(Color.White).tap { onBack() }.padding(horizontal = 44.dp),
+                contentAlignment = Alignment.Center,
+            ) { Text("Back to home", style = TextStyle(fontFamily = Hanken, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = TameColors.InkDark)) }
+            Box(Modifier.padding(top = 6.dp).height(48.dp).tap { onStop() }, contentAlignment = Alignment.Center) {
+                Text("Stop focus", style = TextStyle(fontFamily = Hanken, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = TameColors.OnTakeoverSub))
+            }
+        }
+    }
+}
+
 /** Stateless friction stop screen: breathe countdown, then choose. */
 @Composable
 fun FrictionContent(name: String, onStay: () -> Unit, onOpen: () -> Unit) {
