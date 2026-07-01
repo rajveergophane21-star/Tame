@@ -438,7 +438,7 @@ fun AddRuleScreen(vm: AppViewModel) {
                         ),
                     )
                     Text(
-                        "Lock it — no edits or off-switch until it ends",
+                        "Lock it for 24 hours — no edits or off-switch",
                         modifier = Modifier.padding(top = 2.dp),
                         style = TextStyle(
                             fontFamily = Hanken, fontWeight = FontWeight.Normal,

@@ -116,7 +116,7 @@ fun RulesScreen(vm: AppViewModel) {
                 RuleCard(
                     iconStack = { AppIconStack(r.targets, 48.dp, iconFor = vm::iconBitmap) },
                     title = vm.ruleTitle(r, 2),
-                    committed = r.committed,
+                    committed = r.isLocked(System.currentTimeMillis()),
                     sub = (if (r.kind == RuleKind.FEED) "Feed" else "App") + " · " + schedLabel(r),
                     block = r.mode == RuleMode.BLOCK,
                     limitText = if (r.kind == RuleKind.FEED && r.limit > 0) "${r.limit}/day" else "",

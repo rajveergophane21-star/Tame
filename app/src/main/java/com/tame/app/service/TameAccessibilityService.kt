@@ -76,6 +76,18 @@ class TameAccessibilityService : AccessibilityService() {
         }.getOrNull() ?: emptySet()
     }
 
+    // Apps never blocked during a Focus session (so you can reach home + place calls).
+    private val essentialPackages: Set<String> by lazy {
+        val out = mutableSetOf(packageName, "android", "com.android.systemui", "com.android.phone", "com.android.server.telecom")
+        runCatching {
+            packageManager.resolveActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)
+                ?.activityInfo?.packageName?.let { out.add(it) }
+            packageManager.resolveActivity(Intent(Intent.ACTION_DIAL), 0)
+                ?.activityInfo?.packageName?.let { out.add(it) }
+        }
+        out
+    }
+
     /** Transient/system windows that should NOT be treated as the foreground app. */
     private fun ignoredWindow(pkg: String): Boolean =
         pkg == packageName ||
@@ -147,8 +159,13 @@ class TameAccessibilityService : AccessibilityService() {
      * on the last event (both common while scrolling a feed).
      */
     private fun periodicRecheck() {
-        val pkg = currentPkg ?: return
-        if (pkg == packageName || blockOverlay?.isShowing == true) return
+        if (blockOverlay?.isShowing == true) return
+        // Derive the REAL foreground app from the live window — currentPkg can be stale
+        // (e.g. it still points at the last app while APE itself is in the foreground), which
+        // would otherwise pop a block screen over APE. Skip if we can't read it.
+        val pkg = activeRoot()?.packageName?.toString() ?: return
+        if (ignoredWindow(pkg)) return
+        currentPkg = pkg
         cachedScan = null // force a fresh window read
         handleForeground(pkg)
     }
@@ -181,6 +198,13 @@ class TameAccessibilityService : AccessibilityService() {
 
     private fun handleForeground(pkg: String) {
         val now = System.currentTimeMillis()
+
+        // 0) Focus session — block everything except APE and essential apps (launcher/dialer).
+        if (data.settings.focusUntil > now && pkg !in essentialPackages) {
+            clearFeed()
+            enforce(RuleMode.BLOCK, appLabel(pkg), "when your focus ends", pkg, RuleKind.APP)
+            return
+        }
 
         // 1) Whole-app block / friction — APP rule targets are package names
         data.rules.firstOrNull { it.kind == RuleKind.APP && it.targets.contains(pkg) && it.isActiveAt(now) }?.let { rule ->

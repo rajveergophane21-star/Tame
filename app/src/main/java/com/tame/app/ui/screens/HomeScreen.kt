@@ -397,7 +397,7 @@ private fun RuleRow(vm: AppViewModel, r: Rule) {
                         fontSize = 15.sp, color = TameColors.Ink,
                     ),
                 )
-                if (r.committed) {
+                if (r.isLocked(System.currentTimeMillis())) {
                     TameIcons.Lock(13.dp, TameColors.CommitGold2, sw = 2.6f)
                 }
             }

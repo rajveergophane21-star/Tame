@@ -35,11 +35,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo: TameRepository = TameApp.repo
 
+    // Fast, tiny flag mirrored on each onboarding change, so the first screen can be chosen
+    // instantly without a blocking DataStore read on the main thread (that was a launch-ANR risk).
+    private val bootPrefs = app.getSharedPreferences("tame_boot", android.content.Context.MODE_PRIVATE)
+
     // ── persisted state (collected from the repository) ──
-    var data by mutableStateOf(repo.snapshot()); private set
+    // Start empty; the DataStore stream fills it in a moment later (no main-thread disk read).
+    var data by mutableStateOf(TameData()); private set
 
     // ── transient UI state ──
-    var screen by mutableStateOf(if (data.settings.onboarded) Screen.HOME else Screen.ONBOARDING); private set
+    var screen by mutableStateOf(if (bootPrefs.getBoolean("onboarded", false)) Screen.HOME else Screen.ONBOARDING); private set
     var onbStep by mutableStateOf(0); private set
     var selApps by mutableStateOf(emptySet<String>()); private set
 
@@ -71,8 +76,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private var focusJob: Job? = null
     private var toastJob: Job? = null
 
+    private var focusRestored = false
+
     init {
-        viewModelScope.launch { repo.data.collect { data = it } }
+        viewModelScope.launch {
+            repo.data.collect { d ->
+                data = d
+                // If a Focus session was still running (e.g. app was reopened), restore the
+                // countdown UI so the End button is reachable. The service enforces it either way.
+                if (!focusRestored) {
+                    focusRestored = true
+                    val left = d.settings.focusUntil - System.currentTimeMillis()
+                    if (left > 0 && focus == null) restoreFocus((left / 1000).toInt())
+                }
+            }
+        }
         loadInstalledApps()
     }
 
@@ -213,6 +231,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 } else d.rules
                 d.copy(settings = d.settings.copy(onboarded = true), rules = rules)
             }
+            bootPrefs.edit().putBoolean("onboarded", true).apply()
             screen = Screen.HOME
             flash(if (added) "First rule created" else "You're all set")
         }
@@ -220,6 +239,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun replayIntro() {
         viewModelScope.launch {
             repo.update { it.copy(settings = it.settings.copy(onboarded = false)) }
+            bootPrefs.edit().putBoolean("onboarded", false).apply()
             onbStep = 0; screen = Screen.ONBOARDING
         }
     }
@@ -256,7 +276,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun editRule() {
         val r = currentRule() ?: return
-        if (r.committed) { buzz(); return }
+        if (r.isLocked(System.currentTimeMillis())) { buzz(); return }
         draft = Draft(
             kind = r.kind, targets = r.targets.toSet(), mode = r.mode,
             schedMode = r.schedMode, days = r.days, fromHour = r.fromHour, toHour = r.toHour,
@@ -279,7 +299,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         if (r.id != d.editingId) r else r.copy(
                             kind = d.kind, targets = ids, mode = d.mode, schedMode = d.schedMode,
                             days = d.days, fromHour = d.fromHour, toHour = d.toHour,
-                            limit = if (useLimit) d.limit else 0, committed = d.committed,
+                            limit = if (useLimit) d.limit else 0,
+                            committed = d.committed, committedUntil = commitUntil(d.committed, r.committedUntil),
                         )
                     })
                 }
@@ -289,7 +310,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     id = "r" + System.currentTimeMillis(), kind = d.kind, targets = ids, mode = d.mode,
                     schedMode = d.schedMode, days = d.days, fromHour = d.fromHour, toHour = d.toHour,
                     timerEndsAt = if (d.schedMode == SchedMode.TIMER) System.currentTimeMillis() + 60 * 60_000L else null,
-                    limit = if (useLimit) d.limit else 0, committed = d.committed,
+                    limit = if (useLimit) d.limit else 0,
+                    committed = d.committed, committedUntil = commitUntil(d.committed, 0L),
                 )
                 repo.update { td -> td.copy(rules = listOf(r) + td.rules) }
                 screen = Screen.RULES; draft = null; flash("Rule saved")
@@ -298,15 +320,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
     fun cancelDraft() { draft = null; goRules() }
 
+    /** Commit locks a rule for 24 hours (auto-expires, so nothing is ever permanently stuck). */
+    private fun commitUntil(committed: Boolean, existing: Long): Long = when {
+        !committed -> 0L
+        existing > System.currentTimeMillis() -> existing // keep an in-force lock, don't extend it
+        else -> System.currentTimeMillis() + 24 * 60 * 60_000L
+    }
+
     // ── detail ──
     fun toggleRuleCommit() {
         val r = currentRule() ?: return
-        if (r.committed) { buzz(); return }
-        persist { d -> d.copy(rules = d.rules.map { if (it.id == r.id) it.copy(committed = true) else it }) }
+        if (r.isLocked(System.currentTimeMillis())) { buzz(); return }
+        persist { d -> d.copy(rules = d.rules.map { if (it.id == r.id) it.copy(committed = true, committedUntil = commitUntil(true, it.committedUntil)) else it }) }
     }
     fun deleteRule() {
         val r = currentRule() ?: return
-        if (r.committed) { buzz("Committed — can't delete this yet"); return }
+        if (r.isLocked(System.currentTimeMillis())) { buzz("Committed — unlocks within 24h"); return }
         persist { d -> d.copy(rules = d.rules.filter { it.id != r.id }) }
         screen = Screen.RULES
     }
@@ -340,11 +369,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun frictionOpen() { frictionJob?.cancel(); screen = Screen.HOME }
 
     // ── focus ──
+    // Persisting focusUntil is what lets the accessibility service actually block other apps
+    // during a Focus session (open-ended sessions are capped at 8h so nothing gets stuck).
     fun setFocus(min: Int, label: String) {
         focusJob?.cancel()
         val secs = if (min > 0) min * 60 else null
         focus = FocusState(minutes = min, label = label, leftSecs = secs)
         sheet = null; screen = Screen.FOCUS_RUN
+        val until = System.currentTimeMillis() + (secs?.times(1000L) ?: 8 * 60 * 60_000L)
+        persist { it.copy(settings = it.settings.copy(focusUntil = until)) }
         if (secs != null) {
             focusJob = viewModelScope.launch {
                 var left = secs
@@ -353,6 +386,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     focus = focus?.copy(leftSecs = left)
                 }
                 bumpFocusMinutes(min)
+                clearFocusPersist()
                 focus = null; screen = Screen.HOME; flash("Focus complete — nice")
             }
         }
@@ -363,7 +397,25 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             val elapsed = if (f.minutes > 0 && f.leftSecs != null) f.minutes - f.leftSecs / 60 else 0
             if (elapsed > 0) bumpFocusMinutes(elapsed)
         }
+        clearFocusPersist()
         focus = null; screen = Screen.HOME
+    }
+    private fun clearFocusPersist() = persist { it.copy(settings = it.settings.copy(focusUntil = 0L)) }
+
+    /** Re-open the running Focus countdown after the app was reopened mid-session. */
+    private fun restoreFocus(leftSecs: Int) {
+        focusJob?.cancel()
+        focus = FocusState(minutes = leftSecs / 60, label = "Focus", leftSecs = leftSecs)
+        screen = Screen.FOCUS_RUN
+        focusJob = viewModelScope.launch {
+            var left = leftSecs
+            while (left > 0) {
+                delay(1000); left -= 1
+                focus = focus?.copy(leftSecs = left)
+            }
+            clearFocusPersist()
+            focus = null; screen = Screen.HOME
+        }
     }
     private fun bumpFocusMinutes(min: Int) =
         persist { d -> d.copy(settings = d.settings.copy(focusMinutes = d.settings.focusMinutes + min)) }

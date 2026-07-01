@@ -24,7 +24,11 @@ data class Rule(
     val timerEndsAt: Long? = null,                 // epoch millis for TIMER
     val limit: Int = 0,                            // reels/day (FEED only); 0 = none
     val committed: Boolean = false,
+    val committedUntil: Long = 0L,                 // epoch millis the commit-lock holds until
 ) {
+    /** Locked (no edit/delete/disable) while a commitment is still in force. */
+    fun isLocked(nowMillis: Long): Boolean = committedUntil > nowMillis
+
     /** Is the rule in force at [nowMillis]? */
     fun isActiveAt(nowMillis: Long): Boolean = when (schedMode) {
         SchedMode.ALL_DAY -> true
@@ -82,6 +86,7 @@ data class Settings(
     val turnbacks: Int = 0,               // times a block/friction sent you back
     val focusMinutes: Int = 0,            // focus minutes accumulated
     val daysUnderLimit: Int = 0,          // days under the reel limit (last 7)
+    val focusUntil: Long = 0L,            // epoch millis a Focus session blocks everything until (0 = off)
 )
 
 /** Whole persisted state — serialized to a single JSON blob in DataStore. */

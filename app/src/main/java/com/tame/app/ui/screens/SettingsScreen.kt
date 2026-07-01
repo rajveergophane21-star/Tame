@@ -47,7 +47,7 @@ import com.tame.app.ui.theme.accent
 fun SettingsScreen(vm: AppViewModel) {
     val a = accent
 
-    val committedCount = vm.rules.count { it.committed }
+    val committedCount = vm.rules.count { it.isLocked(System.currentTimeMillis()) }
     val committedLabel =
         if (committedCount > 0) {
             committedCount.toString() + (if (committedCount == 1) " rule committed" else " rules committed")
@@ -55,7 +55,7 @@ fun SettingsScreen(vm: AppViewModel) {
             "Nothing committed"
         }
     val committedSub =
-        if (committedCount > 0) "Locked in — can't be turned off yet." else "Commit a rule to lock it in."
+        if (committedCount > 0) "Locked in — unlocks within 24h." else "Commit a rule to lock it in."
 
     Column(
         modifier = Modifier
