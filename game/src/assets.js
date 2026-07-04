@@ -48,16 +48,21 @@ function normalizeModel(scene, targetHeight) {
   return wrapper;
 }
 
-// Heuristic clip matching (case-insensitive substring on actual clip names).
+// Heuristic clip matching: case-insensitive substring, words in priority
+// order, and the shortest clip name wins (so "Idle" beats "Idle_HitReact_Left").
 function matchClips(clips) {
-  const find = (words) => clips.find((c) => {
-    const n = c.name.toLowerCase();
-    return words.some((w) => n.includes(w));
-  }) || null;
-  const idle = find(['idle']);
-  const move = find(['run', 'gallop']) || find(['walk']);
-  const celebrate = find(['jump', 'attack', 'bounce', 'spin', 'roll', 'eat', 'clicked']);
-  return { idle, move, celebrate };
+  const byPriority = (words) => {
+    for (const w of words) {
+      const hits = clips.filter((c) => c.name.toLowerCase().includes(w));
+      if (hits.length) return hits.sort((a, b) => a.name.length - b.name.length)[0];
+    }
+    return null;
+  };
+  const idle = byPriority(['idle']);
+  const walk = byPriority(['walk']);
+  const move = byPriority(['run', 'gallop']) || walk;
+  const celebrate = byPriority(['jump', 'attack', 'bounce', 'spin', 'roll', 'eat', 'clicked']);
+  return { idle, move, walk, celebrate };
 }
 
 async function loadEntry(loader, entry, kind) {
@@ -120,7 +125,7 @@ export class Character {
 
     if (clips && matched && (matched.idle || matched.move)) {
       this.mixer = new THREE.AnimationMixer(root);
-      for (const key of ['idle', 'move', 'celebrate']) {
+      for (const key of ['idle', 'move', 'walk', 'celebrate']) {
         const clip = matched[key];
         if (clip) this.actions[key] = this.mixer.clipAction(clip);
       }
@@ -149,9 +154,17 @@ export class Character {
   }
 
   setMoving(moving, running = false) {
-    if (this.mixer) {
-      if (this.current !== 'celebrate') this.play(moving ? (this.actions.move ? 'move' : 'idle') : (this.actions.idle ? 'idle' : 'move'));
-      if (this.actions.move && this.current === 'move') this.actions.move.timeScale = running ? 1.35 : 1;
+    if (this.mixer && this.current !== 'celebrate') {
+      if (!moving) {
+        if (this.actions.idle) this.play('idle');
+      } else if (!running && this.actions.walk) {
+        this.play('walk');
+      } else if (this.actions.move) {
+        this.play('move');
+        this.actions.move.timeScale = running ? 1.15 : 1;
+      } else if (this.actions.walk) {
+        this.play('walk');
+      }
     }
     this.speed01 += ((moving ? (running ? 1 : 0.55) : 0) - this.speed01) * 0.2;
   }
