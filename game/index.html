@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TAME — a cozy taming game</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #87b5e0; }
+  #app { position: fixed; inset: 0; }
+  #app canvas { display: block; }
+
+  .ui { font-family: ui-rounded, "Segoe UI", system-ui, -apple-system, sans-serif; color: #fff7ea; }
+  .card {
+    background: rgba(36, 42, 34, 0.58);
+    border: 1px solid rgba(255, 247, 234, 0.18);
+    border-radius: 14px;
+    padding: 8px 14px;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    box-shadow: 0 4px 14px rgba(20, 30, 20, 0.25);
+  }
+
+  #hudCount { position: fixed; top: 14px; left: 14px; font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+  #hudCount.pop { animation: pop 0.45s ease; }
+  @keyframes pop { 0% { transform: scale(1); } 35% { transform: scale(1.25); } 100% { transform: scale(1); } }
+
+  #hudTimer { position: fixed; top: 14px; right: 14px; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  #hudMute { position: fixed; top: 62px; right: 14px; font-size: 13px; opacity: 0.85; cursor: pointer; user-select: none; }
+
+  #hint {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    font-size: 14px; opacity: 1; transition: opacity 1.6s ease; white-space: nowrap;
+  }
+  #hint.faded { opacity: 0; pointer-events: none; }
+
+  #badge {
+    position: fixed; bottom: 14px; left: 14px; font-size: 11px; opacity: 0.75;
+    padding: 4px 9px; border-radius: 9px;
+  }
+
+  #prompt {
+    position: fixed; left: 0; top: 0; transform: translate(-50%, -100%);
+    font-size: 15px; font-weight: 700; pointer-events: none; display: none;
+    padding: 5px 11px; white-space: nowrap;
+  }
+  #prompt b { color: #ffd76e; }
+
+  .overlay {
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px; text-align: center;
+    background: radial-gradient(ellipse at center, rgba(30, 40, 28, 0.35), rgba(18, 26, 20, 0.72));
+    z-index: 10; cursor: pointer;
+  }
+  .overlay.hidden { display: none; }
+  .overlay h1 { font-size: clamp(48px, 10vw, 92px); margin: 0; letter-spacing: 14px; text-indent: 14px;
+    text-shadow: 0 4px 0 rgba(40, 80, 50, 0.55), 0 10px 30px rgba(0,0,0,0.35); }
+  .overlay p { font-size: 17px; margin: 0; max-width: 30em; line-height: 1.5; opacity: 0.95; }
+  .overlay .go {
+    margin-top: 10px; font-size: 18px; font-weight: 700; padding: 12px 26px; border-radius: 999px;
+    background: #6fbf73; color: #1c2a1e; border: none; cursor: pointer;
+    box-shadow: 0 5px 0 #4d8f52, 0 10px 22px rgba(0,0,0,0.3); transition: transform 0.12s ease;
+  }
+  .overlay .go:hover { transform: translateY(-2px) scale(1.03); }
+  .overlay .small { font-size: 13px; opacity: 0.75; }
+  #winTime { font-size: 30px; font-weight: 800; color: #ffd76e; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three.module.js",
+    "three/addons/": "./vendor/addons/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="hudCount" class="ui card">🐾 Tamed 0 / 0</div>
+<div id="hudTimer" class="ui card">00:00</div>
+<div id="hudMute" class="ui card" title="Press M to mute">🔊 sound</div>
+<div id="prompt" class="ui card"><b>[E]</b> Tame</div>
+<div id="hint" class="ui card">WASD move · Shift run · drag to look · approach slowly · E tame · M mute</div>
+<div id="badge" class="ui card">assets: loading…</div>
+
+<div id="startOverlay" class="overlay ui">
+  <h1>TAME</h1>
+  <p>A cozy meadow, full of shy wild animals.<br>Sneak up slowly and tame every one of them — they'll follow you home.</p>
+  <button class="go" id="startBtn">Click to Start</button>
+  <p class="small">WASD move · Shift run · drag to look · E tame · M mute</p>
+</div>
+
+<div id="winOverlay" class="overlay ui hidden">
+  <h1 style="font-size:clamp(34px,7vw,64px)">All animals tamed! 🐾</h1>
+  <p>Your happy caravan is complete.</p>
+  <div id="winTime" class="card">00:00</div>
+  <button class="go" id="againBtn">Play Again</button>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
