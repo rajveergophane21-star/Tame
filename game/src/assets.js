@@ -7,6 +7,10 @@ import { clone as skeletonClone } from 'three/addons/utils/SkeletonUtils.js';
 
 const DEFAULT_HEIGHTS = { player: 1.6, animal: 0.9, prop: 2.2 };
 
+// Single-file builds (scripts/build_artifact.mjs) inject the manifest and the
+// GLB payloads as base64 on this global so no fetch is ever made.
+const EMBED = (typeof window !== 'undefined' && window.__TAME_EMBEDDED__) || null;
+
 // ---------------------------------------------------------------------------
 // Manifest + GLB loading
 // ---------------------------------------------------------------------------
@@ -15,20 +19,40 @@ function validEntry(e) {
   return !!e && typeof e === 'object' && typeof e.file === 'string' && e.file.length > 0;
 }
 
+function shapeManifest(json) {
+  if (!json || typeof json !== 'object') return null;
+  return {
+    player: validEntry(json.player) ? json.player : null,
+    animals: Array.isArray(json.animals) ? json.animals.filter(validEntry) : [],
+    props: Array.isArray(json.props) ? json.props.filter(validEntry) : [],
+  };
+}
+
 async function fetchManifest() {
+  if (EMBED) return shapeManifest(EMBED.manifest);
   try {
     const res = await fetch('assets/manifest.json', { cache: 'no-store' });
     if (!res.ok) return null;
-    const json = await res.json();
-    if (!json || typeof json !== 'object') return null;
-    return {
-      player: validEntry(json.player) ? json.player : null,
-      animals: Array.isArray(json.animals) ? json.animals.filter(validEntry) : [],
-      props: Array.isArray(json.props) ? json.props.filter(validEntry) : [],
-    };
+    return shapeManifest(await res.json());
   } catch (err) {
     return null; // missing / invalid manifest → pure placeholder mode
   }
+}
+
+function b64ToArrayBuffer(b64) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+
+function loadGltf(loader, entry) {
+  if (EMBED) {
+    const b64 = EMBED.files && EMBED.files[entry.file];
+    if (!b64) return Promise.reject(new Error('not embedded: ' + entry.file));
+    return loader.parseAsync(b64ToArrayBuffer(b64), '');
+  }
+  return loader.loadAsync('assets/' + entry.file);
 }
 
 // Scale a loaded scene so its bounding-box height equals targetHeight, then
@@ -67,7 +91,7 @@ function matchClips(clips) {
 
 async function loadEntry(loader, entry, kind) {
   try {
-    const gltf = await loader.loadAsync('assets/' + entry.file);
+    const gltf = await loadGltf(loader, entry);
     const target = (typeof entry.targetHeight === 'number' && entry.targetHeight > 0)
       ? entry.targetHeight : DEFAULT_HEIGHTS[kind];
     const template = normalizeModel(gltf.scene, target);

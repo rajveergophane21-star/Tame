@@ -7,6 +7,7 @@ import { AnimalManager } from './animals.js';
 import { Hearts } from './particles.js';
 import { Sfx } from './audio.js';
 import { UI } from './ui.js';
+import { Joystick, IS_TOUCH } from './touch.js';
 import { makeRng } from './rng.js';
 import { SEED, MAX_DT, TAME_RANGE } from './constants.js';
 
@@ -57,6 +58,9 @@ async function boot() {
   });
   window.addEventListener('keyup', (e) => keys.delete(e.code));
   ui.mute.addEventListener('click', () => { sfx.setMuted(!sfx.muted); ui.setMuted(sfx.muted); });
+
+  const joystick = IS_TOUCH ? new Joystick(document.getElementById('stick'), document.getElementById('stickNub')) : null;
+  ui.tameBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); tryTame(); });
 
   // --- game state -------------------------------------------------------------
   const state = {
@@ -151,7 +155,7 @@ async function boot() {
 
     if (state.started && !state.won) state.time += dt;
 
-    player.update(dt, state.started ? keys : new Set(), followCam.yaw, world.colliders);
+    player.update(dt, state.started ? keys : new Set(), followCam.yaw, world.colliders, state.started ? joystick : null);
     animals.update(dt, ctx);
     hearts.update(dt);
     world.update(player.position);
@@ -166,7 +170,8 @@ async function boot() {
         _to.y += target.character.height + 0.45;
         ui.showPrompt(_to, camera);
       } else ui.hidePrompt();
-    } else ui.hidePrompt();
+      ui.showTameButton(!!target);
+    } else { ui.hidePrompt(); ui.showTameButton(false); }
 
     ui.setTimer(state.time);
 

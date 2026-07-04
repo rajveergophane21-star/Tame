@@ -25,13 +25,19 @@ export class Player {
     return out.set(0, 0, 1).applyQuaternion(this.group.quaternion);
   }
 
-  update(dt, input, camYaw, colliders) {
-    // input vector in camera space
+  update(dt, input, camYaw, colliders, stick = null) {
+    // input vector in camera space (keys + optional virtual joystick)
     let ix = (input.has('KeyD') || input.has('ArrowRight') ? 1 : 0) - (input.has('KeyA') || input.has('ArrowLeft') ? 1 : 0);
     let iz = (input.has('KeyW') || input.has('ArrowUp') ? 1 : 0) - (input.has('KeyS') || input.has('ArrowDown') ? 1 : 0);
+    let stickRun = false;
+    if (stick && stick.active && stick.mag > 0.12) {
+      ix += stick.x;
+      iz += -stick.y; // screen up = forward
+      stickRun = stick.mag > 0.88; // pushed to the rim = run
+    }
     const len = Math.hypot(ix, iz);
-    if (len > 0) { ix /= len; iz /= len; }
-    this.running = input.has('ShiftLeft') || input.has('ShiftRight');
+    if (len > 1) { ix /= len; iz /= len; }
+    this.running = input.has('ShiftLeft') || input.has('ShiftRight') || stickRun;
     const speed = this.running ? PLAYER_RUN_SPEED : PLAYER_WALK_SPEED;
 
     // rotate into world space by camera yaw

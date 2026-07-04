@@ -1,5 +1,6 @@
 // HTML overlay HUD: counter, timer, tame prompt, badge, start/win overlays.
 import * as THREE from 'three';
+import { IS_TOUCH } from './touch.js';
 
 const _v = new THREE.Vector3();
 
@@ -14,6 +15,20 @@ export class UI {
     this.startOverlay = document.getElementById('startOverlay');
     this.winOverlay = document.getElementById('winOverlay');
     this.winTime = document.getElementById('winTime');
+    this.tameBtn = document.getElementById('tameBtn');
+
+    if (IS_TOUCH) {
+      document.body.classList.add('touch');
+      const touchHint = 'left stick to move · push far to run · drag to look · tap 🐾 to tame';
+      this.hint.textContent = touchHint;
+      document.getElementById('startHint').textContent = touchHint;
+      document.getElementById('startBtn').textContent = 'Tap to Start';
+    }
+  }
+
+  // On touch the pulsing 🐾 button replaces the [E] prompt.
+  showTameButton(show) {
+    if (IS_TOUCH) this.tameBtn.classList.toggle('show', show);
   }
 
   setCount(n, total, pop = false) {
@@ -44,6 +59,7 @@ export class UI {
 
   // Project a world position to the screen and park the prompt there.
   showPrompt(worldPos, camera) {
+    if (IS_TOUCH) { this.hidePrompt(); return; }
     _v.copy(worldPos);
     _v.project(camera);
     if (_v.z > 1) { this.hidePrompt(); return; }
