@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -190,7 +191,9 @@ fun HabitEditorSheet(vm: AppViewModel) {
                                 style = TextStyle(
                                     fontFamily = Hanken, fontWeight = FontWeight.ExtraBold,
                                     fontSize = 13.sp,
-                                    color = if (on) TameColors.Card else TameColors.TextHint,
+                                    // white, not Card: the selected chip bg is always the
+                                    // saturated accent, and Card goes near-black in dark mode
+                                    color = if (on) Color.White else TameColors.TextHint,
                                 ),
                             )
                         }

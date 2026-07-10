@@ -40,10 +40,8 @@ class MainActivity : ComponentActivity(), SystemActions {
         setContent {
             var crash by remember { mutableStateOf(initialCrash) }
             val palette = Accents.byKey(vm.settings.accentKey)
-            // Track the live setting so status-bar icons flip with the in-app toggle too.
-            androidx.compose.runtime.LaunchedEffect(vm.settings.darkMode) {
-                applySystemBars(vm.settings.darkMode)
-            }
+            // (System-bar icon appearance is owned by TameRoot's SideEffect once composition
+            // starts — it accounts for both dark mode and the dark takeover screens.)
             TameTheme(accent = palette) {
                 val current = crash
                 if (current != null) {

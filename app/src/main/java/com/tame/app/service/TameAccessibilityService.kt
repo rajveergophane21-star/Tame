@@ -113,15 +113,18 @@ class TameAccessibilityService : AccessibilityService() {
         }
     }
 
-    // Push today's reels + feed time to the home-screen widget, but only when a value
-    // actually changed (avoids redundant RemoteViews updates every tick).
+    // Push today's reels + feed time to the home-screen widget, but only when a DISPLAYED
+    // value changed. The widget shows whole minutes, so dedupe on minutes — keying on raw
+    // seconds would fire a cross-process RemoteViews update nearly every 900ms tick while
+    // a feed is open (battery/IPC churn, and launchers throttle chatty widgets).
     private var lastWidgetReels = -1
-    private var lastWidgetSecs = -1
+    private var lastWidgetMins = -1
     private fun maybeUpdateWidget() {
         val reels = currentReels()
         val secs = data.settings.reelSeconds + (feedMillisAcc / 1000L).toInt()
-        if (reels == lastWidgetReels && secs == lastWidgetSecs) return
-        lastWidgetReels = reels; lastWidgetSecs = secs
+        val mins = secs / 60
+        if (reels == lastWidgetReels && mins == lastWidgetMins) return
+        lastWidgetReels = reels; lastWidgetMins = mins
         com.tame.app.widget.ReelWidgetProvider.update(this, reels, secs)
     }
 

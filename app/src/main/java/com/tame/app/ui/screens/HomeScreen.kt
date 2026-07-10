@@ -65,7 +65,8 @@ fun HomeScreen(vm: AppViewModel) {
     }
     val heroTitleColor = if (overLimit) Color.White else TameColors.Ink
     val heroSubColor = if (overLimit) Color(0x99FFFFFF) else TameColors.TextFaint2
-    val ringTrack = if (overLimit) Color(0x24FFFFFF) else Color(0xFFEFEBDF)
+    // themed track (was hardcoded beige, which glowed on the dark-mode card)
+    val ringTrack = if (overLimit) Color(0x24FFFFFF) else TameColors.SegmentBg
     val ringColor = when {
         overLimit -> TameColors.OverRed
         ratio >= 0.85f -> a.pop

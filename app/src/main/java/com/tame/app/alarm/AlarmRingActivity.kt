@@ -194,7 +194,7 @@ private fun AlarmContent(name: String, time: String, onDone: () -> Unit, onDismi
                     .tap { onDone() },
                 contentAlignment = Alignment.Center,
             ) {
-                Text("Done — mark it off", style = TextStyle(fontFamily = Hanken, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = TameColors.Ink))
+                Text("Done — mark it off", style = TextStyle(fontFamily = Hanken, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = TameColors.InkDark))
             }
             Box(modifier = Modifier.height(44.dp).tap { onDismiss() }, contentAlignment = Alignment.Center) {
                 Text("Not now", style = TextStyle(fontFamily = Hanken, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = TameColors.OnDarkSub))

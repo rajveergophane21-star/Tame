@@ -129,7 +129,8 @@ fun AlarmTakeover(vm: AppViewModel) {
                             fontFamily = Hanken,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 17.sp,
-                            color = TameColors.Ink,
+                            // fixed dark ink: sits on the gold pop button (Ink flips light in dark mode)
+                            color = TameColors.InkDark,
                         ),
                     )
                 }

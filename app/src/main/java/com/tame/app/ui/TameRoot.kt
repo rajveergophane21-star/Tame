@@ -37,12 +37,18 @@ private val navScreens = setOf(Screen.HOME, Screen.RULES, Screen.HABITS, Screen.
 fun TameRoot(vm: AppViewModel) {
     val screen = vm.screen
 
-    // keep system status-bar icon colour in sync with the current screen
+    // Keep system bar icon colour in sync with what's behind them: light icons on the dark
+    // takeover screens AND whenever dark mode is on (this runs every recomposition, so it must
+    // account for the theme or it would override the launch-time setting).
     val view = LocalView.current
     val dark = screen in darkScreens
+    val darkBars = dark || vm.settings.darkMode
     SideEffect {
         val window = (view.context as? Activity)?.window ?: return@SideEffect
-        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !dark
+        WindowCompat.getInsetsController(window, view).apply {
+            isAppearanceLightStatusBars = !darkBars
+            isAppearanceLightNavigationBars = !darkBars
+        }
     }
 
     Box(
