@@ -28,16 +28,22 @@ class MainActivity : ComponentActivity(), SystemActions {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        // Apply the saved theme before the first frame (bootPrefs mirrors the darkMode setting).
-        com.tame.app.ui.theme.TameColors.applyDark(
-            getSharedPreferences("tame_boot", MODE_PRIVATE).getBoolean("dark", false)
-        )
+        // Apply the saved theme before the first frame (bootPrefs mirrors the darkMode setting):
+        // palette, status-bar icon contrast, and window background (no light flash at launch).
+        val dark = getSharedPreferences("tame_boot", MODE_PRIVATE).getBoolean("dark", false)
+        com.tame.app.ui.theme.TameColors.applyDark(dark)
+        applySystemBars(dark)
+        if (dark) window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0xFF121512.toInt()))
         vm.systemActions = this
         maybeRequestNotifications()
         val initialCrash = CrashReporter.consume(this)
         setContent {
             var crash by remember { mutableStateOf(initialCrash) }
             val palette = Accents.byKey(vm.settings.accentKey)
+            // Track the live setting so status-bar icons flip with the in-app toggle too.
+            androidx.compose.runtime.LaunchedEffect(vm.settings.darkMode) {
+                applySystemBars(vm.settings.darkMode)
+            }
             TameTheme(accent = palette) {
                 val current = crash
                 if (current != null) {
@@ -54,6 +60,14 @@ class MainActivity : ComponentActivity(), SystemActions {
         super.onResume()
         vm.refreshPerms()
         vm.ensureDay()
+    }
+
+    /** Dark surface needs light status/nav icons (the XML theme assumes light mode). */
+    private fun applySystemBars(dark: Boolean) {
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = !dark
+            isAppearanceLightNavigationBars = !dark
+        }
     }
 
     private fun maybeRequestNotifications() {
@@ -85,12 +99,11 @@ class MainActivity : ComponentActivity(), SystemActions {
         return pm.isIgnoringBatteryOptimizations(packageName)
     }
 
-    override fun pinHomeWidget() {
-        val mgr = getSystemService(android.appwidget.AppWidgetManager::class.java) ?: return
+    override fun pinHomeWidget(): Boolean {
+        val mgr = getSystemService(android.appwidget.AppWidgetManager::class.java) ?: return false
         val provider = android.content.ComponentName(this, com.tame.app.widget.ReelWidgetProvider::class.java)
-        if (mgr.isRequestPinAppWidgetSupported) {
-            runCatching { mgr.requestPinAppWidget(provider, null, null) }
-        }
+        if (!mgr.isRequestPinAppWidgetSupported) return false
+        return runCatching { mgr.requestPinAppWidget(provider, null, null) }.getOrDefault(false)
     }
 
     override fun openBatterySettings() {

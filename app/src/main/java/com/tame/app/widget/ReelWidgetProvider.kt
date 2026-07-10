@@ -10,6 +10,10 @@ import android.widget.RemoteViews
 import com.tame.app.MainActivity
 import com.tame.app.R
 import com.tame.app.TameApp
+import com.tame.app.data.TameRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /**
  * Minimal home-screen widget: today's reel count and time spent on feeds. Values are pushed
@@ -19,11 +23,24 @@ import com.tame.app.TameApp
 class ReelWidgetProvider : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, mgr: AppWidgetManager, ids: IntArray) {
-        val d = runCatching { TameApp.repo.snapshot() }.getOrNull()
-        val reels = d?.settings?.todayReels ?: 0
-        val secs = d?.settings?.reelSeconds ?: 0
-        val views = buildViews(context, reels, secs)
-        for (id in ids) mgr.updateAppWidget(id, views)
+        // Read off the main thread (onReceive runs on main; a blocking DataStore read there
+        // risks jank/ANR) and finish the broadcast via goAsync once views are pushed.
+        val pending = goAsync()
+        CoroutineScope(Dispatchers.Default).launch {
+            try {
+                val s = runCatching { TameApp.repo.snapshot() }.getOrNull()?.settings
+                // Counts reset when the app/service performs the daily rollover. If neither has
+                // run since midnight, yesterday's totals are still on disk — show 0 instead of
+                // presenting stale numbers as "REELS TODAY".
+                val fresh = s != null && s.lastReelDay == TameRepository.today()
+                val reels = if (fresh) s?.todayReels ?: 0 else 0
+                val secs = if (fresh) s?.reelSeconds ?: 0 else 0
+                val views = buildViews(context, reels, secs)
+                for (id in ids) mgr.updateAppWidget(id, views)
+            } finally {
+                pending.finish()
+            }
+        }
     }
 
     companion object {

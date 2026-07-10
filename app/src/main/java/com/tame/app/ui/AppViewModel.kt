@@ -546,8 +546,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // ── home-screen widget ──
-    /** Ask the launcher to pin the reels widget (Android 8+). */
-    fun addHomeWidget() { systemActions?.pinHomeWidget() }
+    /** Ask the launcher to pin the reels widget; fall back to manual instructions. */
+    fun addHomeWidget() {
+        if (systemActions?.pinHomeWidget() != true) {
+            flash("Long-press your home screen → Widgets → APE")
+        }
+    }
 
     // ── daily reset (shared with the service) ──
     fun ensureDay() = viewModelScope.launch { repo.rolloverIfNeeded() }

@@ -804,7 +804,8 @@ private fun HourStepper(
     }
 }
 
-/** Small white 30dp round stepper (custom-schedule From/To). */
+/** Small 30dp round stepper (custom-schedule From/To). Card bg so the Ink symbol stays
+ *  visible in dark mode (a hardcoded white knob would hide the near-white dark-mode Ink). */
 @Composable
 private fun StepKnob(symbol: String, onClick: () -> Unit) {
     Box(
@@ -812,7 +813,7 @@ private fun StepKnob(symbol: String, onClick: () -> Unit) {
             .size(30.dp)
             .shadow(1.dp, CircleShape, clip = false)
             .clip(CircleShape)
-            .background(Color.White)
+            .background(TameColors.Card)
             .tap { onClick() },
         contentAlignment = Alignment.Center,
     ) {

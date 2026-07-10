@@ -56,7 +56,8 @@ private val onbSteps = listOf(
 @Composable
 fun OnboardingScreen(vm: AppViewModel) {
     val a = accent
-    val onbBg = Color(0xFFF5F3EC)
+    // Themed (not hardcoded) so replaying the intro in dark mode stays readable.
+    val onbBg = TameColors.Surface
     val step = onbSteps.getOrElse(vm.onbStep) { onbSteps[0] }
 
     Box(modifier = Modifier.fillMaxSize().background(onbBg)) {
