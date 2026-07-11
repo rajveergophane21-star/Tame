@@ -264,9 +264,12 @@ class TameAccessibilityService : AccessibilityService() {
             return
         }
 
-        // 1) Whole-app block / friction — APP rule targets are package names
+        // 1) Whole-app block / friction — APP rule targets are package names.
+        // Essential apps (launcher/dialer) are never enforced even if a saved rule targets
+        // them: blocking the home screen would loop forever (Home → block → "Back to home").
         data.rules.firstOrNull { it.kind == RuleKind.APP && it.targets.contains(pkg) && it.isActiveAt(now) }?.let { rule ->
             clearFeed()
+            if (pkg in essentialPackages) return
             if (!snoozed(pkg)) enforce(rule.mode, appLabel(pkg), liftLabel(rule), pkg, RuleKind.APP)
             return
         }

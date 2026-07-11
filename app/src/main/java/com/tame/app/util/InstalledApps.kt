@@ -24,11 +24,20 @@ object InstalledApps {
         val pm = context.packageManager
         val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val resolved = runCatching { pm.queryIntentActivities(intent, 0) }.getOrNull().orEmpty()
+        // Never offer the home launcher or dialer as block targets — blocking the home
+        // screen would trap the user in a loop (Home button → block → "Back to home" → block).
+        val essential = HashSet<String>()
+        runCatching {
+            pm.resolveActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)
+                ?.activityInfo?.packageName?.let { essential.add(it) }
+            pm.resolveActivity(Intent(Intent.ACTION_DIAL), 0)
+                ?.activityInfo?.packageName?.let { essential.add(it) }
+        }
         val seen = HashSet<String>()
         val out = ArrayList<AppEntry>()
         for (ri in resolved) {
             val pkg = ri.activityInfo?.packageName ?: continue
-            if (pkg == context.packageName) continue
+            if (pkg == context.packageName || pkg in essential) continue
             if (!seen.add(pkg)) continue
             val label = runCatching { ri.loadLabel(pm).toString() }.getOrNull()?.takeIf { it.isNotBlank() } ?: pkg
             val icon = runCatching { ri.activityInfo.loadIcon(pm).toBitmap(144, 144).asImageBitmap() }.getOrNull()

@@ -54,6 +54,7 @@ fun HomeScreen(vm: AppViewModel) {
     val a = accent
 
     val ratio = vm.reelRatio()
+    val reelLimit = vm.effectiveReelLimit()
     val overLimit = ratio >= 1f
 
     // hero derived (lines 1003-1013)
@@ -80,7 +81,7 @@ fun HomeScreen(vm: AppViewModel) {
     }
     val heroTitle = when {
         overLimit -> "Ape is fried — feeds locked."
-        ratio >= 0.85f -> "Easy now. ${vm.settings.reelLimit - vm.settings.todayReels} left."
+        ratio >= 0.85f -> "Easy now. ${reelLimit - vm.settings.todayReels} left."
         else -> "${vm.settings.reelSeconds / 60} min watched"
     }
 
@@ -199,7 +200,7 @@ fun HomeScreen(vm: AppViewModel) {
                             ),
                         )
                         Text(
-                            "of ${vm.settings.reelLimit}",
+                            "of $reelLimit",
                             modifier = Modifier.padding(top = 1.dp),
                             style = TextStyle(
                                 fontFamily = Hanken, fontWeight = FontWeight.SemiBold,

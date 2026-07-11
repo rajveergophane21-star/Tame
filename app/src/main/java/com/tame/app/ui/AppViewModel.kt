@@ -140,8 +140,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val rules get() = data.rules
     val habits get() = data.habits
 
+    /**
+     * The limit that's actually being enforced right now: the tightest active feed-rule
+     * daily limit, falling back to the global default. Keeps the Home ring consistent with
+     * the floating counter and the block threshold (the service resolves limits the same way).
+     */
+    fun effectiveReelLimit(): Int {
+        val now = System.currentTimeMillis()
+        return rules.filter { it.kind == RuleKind.FEED && it.limit > 0 && it.isActiveAt(now) }
+            .minOfOrNull { it.limit } ?: settings.reelLimit
+    }
+
     fun reelRatio(): Float {
-        val limit = settings.reelLimit
+        val limit = effectiveReelLimit()
         return if (limit > 0) settings.todayReels.toFloat() / limit else 0f
     }
 

@@ -33,7 +33,10 @@ fun daysLabel(days: List<Boolean>): String {
 /** Human schedule string, matching the design (e.g. "All day", "Weekdays · 9:00 – 17:00"). */
 fun schedLabel(rule: Rule): String = when (rule.schedMode) {
     SchedMode.ALL_DAY -> "All day"
-    SchedMode.TIMER -> "Next 60 min"
+    // An expired timer rule does nothing — say so instead of showing "Next 60 min" forever.
+    SchedMode.TIMER ->
+        if (rule.timerEndsAt != null && rule.timerEndsAt <= System.currentTimeMillis()) "Timer ended"
+        else "Next 60 min"
     SchedMode.CUSTOM ->
         "${daysLabel(rule.days)} · ${rule.fromHour}:00 – ${rule.toHour}:00"
 }
